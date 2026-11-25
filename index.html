@@ -15,9 +15,45 @@
     />
     <!-- jsPDF for direct PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      #nl-badge-frame,
+      iframe#nl-badge-frame,
+      iframe[title="Powered by Netlify"],
+      iframe[id*="nl-badge"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        top: -99999px !important;
+        z-index: -999999 !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      (function () {
+        function removeNetlifyBadge() {
+          var nodes = document.querySelectorAll(
+            '#nl-badge-frame, iframe[title="Powered by Netlify"], iframe[id*="nl-badge"]'
+          );
+          for (var i = 0; i < nodes.length; i++) {
+            nodes[i].remove();
+          }
+        }
+        removeNetlifyBadge();
+        if (typeof MutationObserver !== 'undefined') {
+          var observer = new MutationObserver(removeNetlifyBadge);
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
