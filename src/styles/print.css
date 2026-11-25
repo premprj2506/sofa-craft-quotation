@@ -1,0 +1,143 @@
+@media print {
+  /* Hide all interactive UI and header elements */
+  .header,
+  .actions,
+  .no-print,
+  button,
+  input,
+  select,
+  .tab-group,
+  .search-bar,
+  .nav-btn,
+  .back-btn,
+  .step-indicator,
+  .step-pills,
+  .step-selector,
+  .toast,
+  .quote-list,
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  body {
+    font-size: 12px;
+    color: #000;
+    background: #fff;
+    margin: 0;
+  }
+
+  .app {
+    min-height: unset;
+  }
+
+  .main {
+    padding: 0;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .print-container {
+    width: 100%;
+    padding: 10px 20px;
+  }
+
+  .form-card,
+  .totals-card {
+    border: 1px solid #ccc;
+    border-radius: 0;
+    margin-bottom: 12px;
+    padding: 14px;
+    page-break-inside: avoid;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .quote-view-header {
+    padding: 12px 0 16px;
+    border-bottom: 2px solid #000;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .quote-view-header .logo-text {
+    font-size: 22px;
+    color: #000;
+  }
+
+  .quote-view-header .sub {
+    color: #555;
+    font-size: 11px;
+  }
+
+  .quote-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .meta-item .label {
+    color: #666;
+    font-size: 11px;
+  }
+
+  .meta-item .value {
+    font-size: 13px;
+    color: #000;
+  }
+
+  .breakdown-table {
+    border: 1px solid #ccc;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+
+  .breakdown-table th {
+    background: #f0f0f0;
+    color: #333;
+    padding: 7px 8px;
+    border: 1px solid #ddd;
+    font-size: 11px;
+  }
+
+  .breakdown-table td {
+    padding: 7px 8px;
+    border: 1px solid #ddd;
+    color: #000;
+    font-size: 12px;
+  }
+
+  .total-row {
+    padding: 6px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 13px;
+  }
+
+  .total-row.grand {
+    font-size: 16px;
+    border-top: 2px solid #000;
+    padding-top: 10px;
+    margin-top: 6px;
+  }
+
+  .total-row.grand span:last-child {
+    color: #000;
+    font-size: 18px;
+  }
+
+  .form-section-title {
+    color: #444;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+  }
+
+  .calc-result {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-weight: 600;
+    color: #000;
+  }
+}

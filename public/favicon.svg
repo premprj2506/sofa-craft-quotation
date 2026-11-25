@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sofaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c17f3a" />
+      <stop offset="100%" stop-color="#e8a84a" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#sofaGrad)" />
+  <g
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M14 31V22a6 6 0 0 1 6-6h24a6 6 0 0 1 6 6v9" />
+    <path d="M10 31a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v7h24v-7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v11a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V31Z" />
+    <path d="M16 46v4" />
+    <path d="M48 46v4" />
+  </g>
+</svg>
