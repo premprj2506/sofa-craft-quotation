@@ -1,0 +1,31 @@
+{
+  "name": "સોફા અને પડદા એસ્ટિમેટ - Sofa Craft",
+  "short_name": "સોફા એસ્ટિમેટ",
+  "description": "સોફા, મટિરિયલ કેલ્ક્યુલેટર, ગાદલા અને પડદા કોટેશન એપ્લિકેશન",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf9f6",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
