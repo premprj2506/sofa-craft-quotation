@@ -1374,7 +1374,7 @@ h3 {
 
 .shape-selector-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-top: 8px;
 }
@@ -1584,6 +1584,14 @@ h3 {
 .mat-sub-block {
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
+}
+
+.sub-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 8px;
 }
 
 .mat-sub-header {

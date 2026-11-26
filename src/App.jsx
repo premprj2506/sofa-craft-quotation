@@ -442,7 +442,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleTransferMaterialToQuote = (targetService, kapadMeters) => {
+  const handleTransferMaterialToQuote = (
+    targetService,
+    kapadMeters,
+    targetCoverType = 'simple'
+  ) => {
     setCartItems([]);
     setEditingQuoteId(null);
     setSelectedService(targetService);
@@ -453,8 +457,12 @@ export default function App() {
         kapad_qty: kapadMeters,
       });
     } else if (targetService === 'cover') {
-      setCoverType('simple');
-      const defaults = getServiceDefaultsFromSettings('cover', settings, 'simple');
+      setCoverType(targetCoverType);
+      const defaults = getServiceDefaultsFromSettings(
+        'cover',
+        settings,
+        targetCoverType
+      );
       setFormData({
         ...defaults,
         kapad_meter: kapadMeters,
