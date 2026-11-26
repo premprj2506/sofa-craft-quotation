@@ -49,10 +49,14 @@ export default function CurtainList({
                 <div className="quote-meta">
                   <span className="quote-badge maroon">{q.typeName}</span>
                   <span>{q.customer?.date || 'No date'}</span>
-                  {q.measurements && (
-                    <span>
-                      · {q.measurements.height}" × {q.measurements.width}"
-                    </span>
+                  {Array.isArray(q.windows) && q.windows.length > 0 ? (
+                    <span>· {q.windows.length} બારી/રૂમ</span>
+                  ) : (
+                    q.measurements && (
+                      <span>
+                        · {q.measurements.height}" × {q.measurements.width}"
+                      </span>
+                    )
                   )}
                 </div>
               </div>

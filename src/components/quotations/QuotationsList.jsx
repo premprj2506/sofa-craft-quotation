@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { fmt, fmtCurtain } from '../../utils/formatters';
+import { fmt, fmtCurtain, num } from '../../utils/formatters';
+import { ORDER_STATUSES, getStatusMeta } from '../../constants/orderStatus';
 import { exportCurtainPDF } from '../../utils/pdfExport';
 import { exportBackupData, parseBackupFile } from '../../utils/storage';
 import {
@@ -25,27 +26,42 @@ export default function QuotationsList({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all' | 'sofa' | 'curtains'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'pending' | 'confirmed' | 'done'
   const fileInputRef = useRef(null);
 
-  const normalizedSofa = (quotations || []).map((q) => ({
-    ...q,
-    _kind: 'sofa',
-    _name: q.customerName || 'નામ વગર',
-    _phone: q.customerPhone || '',
-    _date: q.date || '',
-    _service: q.serviceLabel || q.serviceType || 'Sofa',
-    _amount: q.totals?.grand || 0,
-  }));
+  const normalizedSofa = (quotations || []).map((q) => {
+    const amount = q.totals?.grand || 0;
+    const advance = Math.max(0, num(q.advance));
+    return {
+      ...q,
+      _kind: 'sofa',
+      _name: q.customerName || 'નામ વગર',
+      _phone: q.customerPhone || '',
+      _date: q.date || '',
+      _service: q.serviceLabel || q.serviceType || 'Sofa',
+      _amount: amount,
+      _advance: advance,
+      _balance: Math.max(0, num(amount) - advance),
+      _status: q.status || 'pending',
+    };
+  });
 
-  const normalizedCurtains = (curtainQuotations || []).map((q) => ({
-    ...q,
-    _kind: 'curtain',
-    _name: q.customer?.name || 'નામ વગર',
-    _phone: q.customer?.phone || '',
-    _date: q.customer?.date || '',
-    _service: q.typeName || 'પડદા',
-    _amount: q.grandTotal || 0,
-  }));
+  const normalizedCurtains = (curtainQuotations || []).map((q) => {
+    const amount = q.grandTotal || 0;
+    const advance = Math.max(0, num(q.advance));
+    return {
+      ...q,
+      _kind: 'curtain',
+      _name: q.customer?.name || 'નામ વગર',
+      _phone: q.customer?.phone || '',
+      _date: q.customer?.date || '',
+      _service: q.typeName || 'પડદા',
+      _amount: amount,
+      _advance: advance,
+      _balance: Math.max(0, num(amount) - advance),
+      _status: q.status || 'pending',
+    };
+  });
 
   const combined = (
     filterType === 'all'
@@ -56,6 +72,7 @@ export default function QuotationsList({
   ).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
 
   const filtered = combined.filter((q) => {
+    if (statusFilter !== 'all' && q._status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
     const term = searchQuery.toLowerCase();
     return (
@@ -188,11 +205,36 @@ export default function QuotationsList({
         </div>
       </div>
 
+      {/* Status Filter Row */}
+      <div className="status-filter-row no-print">
+        <button
+          type="button"
+          className={`status-filter-pill ${statusFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('all')}
+        >
+          બધા સ્ટેટસ ({combined.length})
+        </button>
+        {ORDER_STATUSES.map((st) => {
+          const count = combined.filter((q) => q._status === st.id).length;
+          return (
+            <button
+              key={st.id}
+              type="button"
+              className={`status-filter-pill status-${st.id} ${statusFilter === st.id ? 'active' : ''}`}
+              onClick={() => setStatusFilter(st.id)}
+            >
+              {st.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       <div className="quote-list">
         {filtered.length > 0 ? (
           filtered.map((q) => {
             const isCurtain = q._kind === 'curtain';
             const avatarChar = (q._name || '?')[0].toUpperCase();
+            const statusMeta = getStatusMeta(q._status);
 
             return (
               <div
@@ -227,6 +269,9 @@ export default function QuotationsList({
                     <span className={`quote-badge ${isCurtain ? 'maroon' : ''}`}>
                       {q._service}
                     </span>
+                    <span className={`status-pill status-${statusMeta.id}`}>
+                      {statusMeta.label}
+                    </span>
                   </div>
                 </div>
 
@@ -234,6 +279,11 @@ export default function QuotationsList({
                   <div className={`quote-total ${isCurtain ? 'curtain' : ''}`}>
                     {isCurtain ? fmtCurtain(q._amount) : `₹ ${fmt(q._amount)}`}
                   </div>
+                  {q._advance > 0 && (
+                    <div className="list-balance-due">
+                      બાકી: {isCurtain ? fmtCurtain(q._balance) : `₹ ${fmt(q._balance)}`}
+                    </div>
+                  )}
                   {isCurtain && (
                     <div className="quote-inline-actions no-print">
                       <button

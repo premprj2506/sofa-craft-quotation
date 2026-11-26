@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Header from './components/common/Header';
 import MobileNav from './components/common/MobileNav';
 import Toast from './components/common/Toast';
@@ -33,6 +33,7 @@ import {
 } from './utils/calculations';
 import { fmt } from './utils/formatters';
 import { generateId } from './utils/id';
+import { extractSavedCustomers } from './utils/customers';
 import {
   loadSofaQuotations,
   saveSofaQuotations,
@@ -77,6 +78,8 @@ export default function App() {
   const [commission, setCommission] = useState(0);
   const [gst, setGst] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [advance, setAdvance] = useState(0);
+  const [status, setStatus] = useState('pending');
 
   // Quotations and active view/edit state
   const [quotations, setQuotations] = useState(() => loadSofaQuotations());
@@ -91,6 +94,10 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState('');
 
   const totalQuotesCount = quotations.length + curtainQuotations.length;
+  const savedCustomers = useMemo(
+    () => extractSavedCustomers(quotations, curtainQuotations),
+    [quotations, curtainQuotations]
+  );
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -108,6 +115,8 @@ export default function App() {
     setCommission(0);
     setGst(0);
     setDiscount(0);
+    setAdvance(0);
+    setStatus('pending');
     setMattressThickness(null);
     setMattressWarranty(null);
     setMattressStep(1);
@@ -181,10 +190,15 @@ export default function App() {
   };
 
   const handleChangeAdjustment = (key, value) => {
+    if (key === 'status') {
+      setStatus(value || 'pending');
+      return;
+    }
     const val = value === '' ? '' : Number(value);
     if (key === 'commission') setCommission(isNaN(val) ? 0 : val);
     if (key === 'gst') setGst(isNaN(val) ? 0 : val);
     if (key === 'discount') setDiscount(isNaN(val) ? 0 : val);
+    if (key === 'advance') setAdvance(isNaN(val) ? 0 : val);
   };
 
   const handleCoverTypeChange = (type) => {
@@ -287,10 +301,18 @@ export default function App() {
         serviceLabel: activeServiceObj?.label || selectedService,
       };
     }
-    const count = cartItems.length + (selectedService ? 1 : 0);
+    const allEntries = [
+      ...cartItems,
+      ...(selectedService ? [{ serviceType: selectedService }] : []),
+    ];
+    const hasCurtains = allEntries.some((item) => item.serviceType === 'curtains');
+    const hasSofa = allEntries.some((item) => item.serviceType !== 'curtains');
+    const count = allEntries.length;
+    const prefix =
+      hasCurtains && hasSofa ? 'સોફા + પડદા સંયુક્ત બિલ' : 'મિશ્ર કોટેશન';
     return {
       serviceType: 'multi',
-      serviceLabel: `મિશ્ર કોટેશન (${count} સેવાઓ)`,
+      serviceLabel: `${prefix} (${count} સેવાઓ)`,
     };
   };
 
@@ -341,6 +363,8 @@ export default function App() {
       commission,
       gst,
       discount,
+      advance: Math.max(0, Number(advance) || 0),
+      status: status || 'pending',
       breakdown: combinedBreakdown,
       totals: liveTotals,
     };
@@ -365,18 +389,32 @@ export default function App() {
     setCommission(quote.commission || 0);
     setGst(quote.gst || 0);
     setDiscount(quote.discount || 0);
+    setAdvance(quote.advance || 0);
+    setStatus(quote.status || 'pending');
     setEditingQuoteId(isEditMode ? quote.id : null);
 
+    let nextPage = 'form';
     if (quote.serviceType === 'multi' && Array.isArray(quote.cartItems) && quote.cartItems.length > 0) {
-      const last = quote.cartItems[quote.cartItems.length - 1];
-      setCartItems(quote.cartItems.slice(0, -1));
-      setSelectedService(last.serviceType);
-      setFormData({ ...(last.formData || {}) });
-      setCoverType(last.coverType || 'simple');
-      setBedType(last.bedType || 'bed');
-      setMattressThickness(last.mattressThickness || null);
-      setMattressWarranty(last.mattressWarranty || null);
-      setMattressStep(last.serviceType === 'mattress' ? 3 : 1);
+      const lastSofaIdx = quote.cartItems.reduce(
+        (acc, item, idx) => (item.serviceType !== 'curtains' ? idx : acc),
+        -1
+      );
+      if (lastSofaIdx >= 0) {
+        const lastSofa = quote.cartItems[lastSofaIdx];
+        setCartItems(quote.cartItems.filter((_, idx) => idx !== lastSofaIdx));
+        setSelectedService(lastSofa.serviceType);
+        setFormData({ ...(lastSofa.formData || {}) });
+        setCoverType(lastSofa.coverType || 'simple');
+        setBedType(lastSofa.bedType || 'bed');
+        setMattressThickness(lastSofa.mattressThickness || null);
+        setMattressWarranty(lastSofa.mattressWarranty || null);
+        setMattressStep(lastSofa.serviceType === 'mattress' ? 3 : 1);
+      } else {
+        setCartItems([...quote.cartItems]);
+        setSelectedService(null);
+        setFormData({});
+        nextPage = 'summary';
+      }
     } else {
       setCartItems([]);
       setSelectedService(quote.serviceType);
@@ -393,7 +431,7 @@ export default function App() {
         ? 'કોટેશન સુધારવા માટે લોડ થયું'
         : 'કોટેશનની નકલ લોડ થઈ'
     );
-    setPage('form');
+    setPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -422,6 +460,66 @@ export default function App() {
   const handleViewCurtainQuote = (quote) => {
     setViewCurtainQuote(quote);
     setPage('viewCurtain');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleUpdateSofaQuoteMeta = (id, patch) => {
+    let nextView = null;
+    const updated = quotations.map((q) => {
+      if (q.id !== id) return q;
+      nextView = { ...q, ...patch };
+      return nextView;
+    });
+    setQuotations(updated);
+    saveSofaQuotations(updated);
+    if (nextView && viewQuote?.id === id) {
+      setViewQuote(nextView);
+    }
+    showToast('કોટેશન અપડેટ થયું!');
+  };
+
+  const handleUpdateCurtainQuoteMeta = (id, patch) => {
+    let nextView = null;
+    const updated = curtainQuotations.map((q) => {
+      if (q.id !== id) return q;
+      nextView = { ...q, ...patch };
+      return nextView;
+    });
+    setCurtainQuotations(updated);
+    saveCurtainQuotations(updated);
+    if (nextView && viewCurtainQuote?.id === id) {
+      setViewCurtainQuote(nextView);
+    }
+    showToast('પડદા કોટેશન અપડેટ થયું!');
+  };
+
+  const handleAddCurtainToMainQuote = (curtainCartItem, curtainCustomer) => {
+    if (!customerName && curtainCustomer?.name) {
+      setCustomerName(curtainCustomer.name);
+    }
+    if (!customerPhone && curtainCustomer?.phone) {
+      setCustomerPhone(curtainCustomer.phone);
+    }
+    if (curtainCustomer?.date) {
+      setQuotationDate(curtainCustomer.date);
+    }
+    if ((!advance || Number(advance) === 0) && curtainCustomer?.advance) {
+      setAdvance(Number(curtainCustomer.advance) || 0);
+    }
+    if (status === 'pending' && curtainCustomer?.status) {
+      setStatus(curtainCustomer.status);
+    }
+    const hasOtherServices = cartItems.length > 0 || Boolean(selectedService);
+    setCartItems((prev) => [...prev, curtainCartItem]);
+    if (hasOtherServices) {
+      showToast(`${curtainCartItem.serviceLabel} સંયુક્ત બિલમાં ઉમેરાયું!`);
+      setPage('summary');
+    } else {
+      showToast(
+        'પડદા કોટેશનમાં ઉમેરાયા! હવે સોફા સેવા પસંદ કરો અથવા Preview જુઓ.'
+      );
+      setPage('home');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -575,6 +673,8 @@ export default function App() {
                 : handleNavigate('home')
             }
             onQuotesChange={setCurtainQuotations}
+            onAddToMainQuote={handleAddCurtainToMainQuote}
+            savedCustomers={savedCustomers}
             initialQuote={editingCurtainState?.quote || null}
             isEditing={Boolean(editingCurtainState?.isEditing)}
             settings={settings}
@@ -590,6 +690,8 @@ export default function App() {
           <MaterialCalculator
             onBackToHome={() => handleNavigate('home')}
             onTransferToQuote={handleTransferMaterialToQuote}
+            settings={settings}
+            showToast={showToast}
           />
         )}
 
@@ -664,6 +766,7 @@ export default function App() {
                     customerName={customerName}
                     customerPhone={customerPhone}
                     quotationDate={quotationDate}
+                    savedCustomers={savedCustomers}
                     onChange={handleCustomerChange}
                   />
 
@@ -705,6 +808,8 @@ export default function App() {
                     commission={commission}
                     gst={gst}
                     discount={discount}
+                    advance={advance}
+                    status={status}
                     onChangeAdjustment={handleChangeAdjustment}
                   />
                 </div>
@@ -744,6 +849,7 @@ export default function App() {
                       totals={liveTotals}
                       commission={commission}
                       gst={gst}
+                      advance={advance}
                     />
 
                     <div className="side-actions no-print">
@@ -793,6 +899,8 @@ export default function App() {
             commission={commission}
             gst={gst}
             discount={discount}
+            advance={advance}
+            status={status}
             isEditing={Boolean(editingQuoteId)}
             settings={settings}
             onSave={handleSaveQuotation}
@@ -820,12 +928,14 @@ export default function App() {
         {/* View Sofa Quotation Detail Screen */}
         {page === 'view' && (
           <QuotationDetail
+            key={viewQuote?.id || 'view'}
             quote={viewQuote}
             settings={settings}
             onBack={() => setPage('quotes')}
             onEdit={(q) => loadSofaQuoteIntoEditor(q, true)}
             onDuplicate={(q) => loadSofaQuoteIntoEditor(q, false)}
             onDelete={handleDeleteQuotation}
+            onUpdateQuoteMeta={handleUpdateSofaQuoteMeta}
             showToast={showToast}
           />
         )}
@@ -833,12 +943,14 @@ export default function App() {
         {/* View Curtain Quotation Detail Screen */}
         {page === 'viewCurtain' && (
           <CurtainDetail
+            key={viewCurtainQuote?.id || 'view-curtain'}
             quote={viewCurtainQuote}
             settings={settings}
             onBack={() => setPage('quotes')}
             onEdit={(q) => handleEditCurtainQuote(q, true)}
             onDuplicate={(q) => handleEditCurtainQuote(q, false)}
             onDelete={handleDeleteCurtainQuote}
+            onUpdateQuoteMeta={handleUpdateCurtainQuoteMeta}
             showToast={showToast}
           />
         )}

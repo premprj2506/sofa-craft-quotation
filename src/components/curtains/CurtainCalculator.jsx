@@ -11,7 +11,9 @@ import {
   buildCurtainWhatsAppMessage,
   shareOnWhatsApp,
 } from '../../utils/whatsappShare';
+import { ORDER_STATUSES } from '../../constants/orderStatus';
 import CurtainList from './CurtainList';
+import CustomerNameField from '../common/CustomerNameField';
 import {
   ArrowLeftIcon,
   CurtainIcon,
@@ -19,19 +21,56 @@ import {
   CheckIcon,
   PrintIcon,
   WhatsAppIcon,
+  PlusIcon,
+  EditIcon,
+  CartPlusIcon,
 } from '../common/Icons';
+
+function buildInitialDynamicMap(initialQuote) {
+  const init = {};
+  Object.keys(CURTAIN_CONFIG).forEach((k) => {
+    init[k] = {};
+    CURTAIN_CONFIG[k].fields.forEach((f) => {
+      init[k][f.key] = f.def;
+    });
+  });
+  if (initialQuote?.dynamicValues && initialQuote?.type) {
+    init[initialQuote.type] = {
+      ...init[initialQuote.type],
+      ...initialQuote.dynamicValues,
+    };
+  }
+  return init;
+}
 
 export default function CurtainCalculator({
   showToast,
   onBackToHome,
   onQuotesChange,
+  onAddToMainQuote,
+  savedCustomers = [],
   initialQuote = null,
   isEditing = false,
   settings,
   onDoneEditing,
 }) {
+  // Multi-window support: if editing a multi-window quote, load earlier windows into addedWindows and last window into active editor
+  const initialMulti =
+    Array.isArray(initialQuote?.windows) && initialQuote.windows.length > 0;
+  const initialLastWin = initialMulti
+    ? initialQuote.windows[initialQuote.windows.length - 1]
+    : null;
+
+  const [addedWindows, setAddedWindows] = useState(() =>
+    initialMulti ? initialQuote.windows.slice(0, -1) : []
+  );
+
+  const [roomName, setRoomName] = useState(
+    () => initialLastWin?.roomName || initialQuote?.roomName || 'બારી ૧'
+  );
+
   const [currentType, setCurrentType] = useState(
-    () => initialQuote?.type || 'eyelet'
+    () => initialLastWin?.type || initialQuote?.type || 'eyelet'
   );
   const [viewMode, setViewMode] = useState('calculator'); // 'calculator' | 'list'
 
@@ -45,40 +84,43 @@ export default function CurtainCalculator({
         }
   );
 
-  const [measurements, setMeasurements] = useState(() =>
-    initialQuote?.measurements
-      ? { ...initialQuote.measurements }
+  const [measurements, setMeasurements] = useState(() => {
+    const m = initialLastWin?.measurements || initialQuote?.measurements;
+    return m
+      ? { ...m }
       : {
           height: '',
           width: '',
           fullness: CURTAIN_CONFIG.eyelet.fullness,
-        }
-  );
+        };
+  });
 
   const [dynamicValues, setDynamicValues] = useState(() => {
-    const init = {};
-    Object.keys(CURTAIN_CONFIG).forEach((k) => {
-      init[k] = {};
-      CURTAIN_CONFIG[k].fields.forEach((f) => {
-        init[k][f.key] = f.def;
-      });
-    });
-    if (initialQuote?.dynamicValues && initialQuote?.type) {
-      init[initialQuote.type] = {
-        ...init[initialQuote.type],
-        ...initialQuote.dynamicValues,
+    const base = buildInitialDynamicMap(initialQuote);
+    if (initialLastWin?.dynamicValues && initialLastWin?.type) {
+      base[initialLastWin.type] = {
+        ...base[initialLastWin.type],
+        ...initialLastWin.dynamicValues,
       };
     }
-    return init;
+    return base;
   });
 
   const [adjustments, setAdjustments] = useState(() =>
     initialQuote?.adjustments
-      ? { ...initialQuote.adjustments }
+      ? {
+          commission: initialQuote.adjustments.commission || 0,
+          gst: initialQuote.adjustments.gst || 0,
+          discount: initialQuote.adjustments.discount || 0,
+          advance: initialQuote.advance ?? initialQuote.adjustments.advance ?? 0,
+          status: initialQuote.status || initialQuote.adjustments.status || 'pending',
+        }
       : {
           commission: 0,
           gst: 0,
           discount: initialQuote?.discount || 0,
+          advance: initialQuote?.advance || 0,
+          status: initialQuote?.status || 'pending',
         }
   );
 
@@ -114,29 +156,168 @@ export default function CurtainCalculator({
   };
 
   const v = gatherValues();
-  const items = cfg.calc(v);
-  const subtotal = items.reduce((sum, item) => sum + (item.value || 0), 0);
+  const activeItems = cfg.calc(v);
+  const activeSubtotal = activeItems.reduce((sum, item) => sum + (item.value || 0), 0);
+
+  const hasActiveDimensions =
+    num(measurements.height) > 0 || num(measurements.width) > 0;
+  const includeActiveInTotal =
+    addedWindows.length === 0 || hasActiveDimensions;
+
+  const addedSubtotal = addedWindows.reduce(
+    (sum, w) => sum + (w.subtotal || 0),
+    0
+  );
+  const subtotal = addedSubtotal + (includeActiveInTotal ? activeSubtotal : 0);
+
   const commissionAmt = (subtotal * num(adjustments.commission)) / 100;
   const afterCommission = subtotal + commissionAmt;
   const gstAmt = (afterCommission * num(adjustments.gst)) / 100;
   const afterGst = afterCommission + gstAmt;
   const grandTotal = Math.max(0, afterGst - num(adjustments.discount));
 
-  const buildRecord = (id) => ({
-    id,
-    type: currentType,
-    typeName: cfg.name,
-    customer: { ...customer },
-    measurements: { ...measurements },
-    dynamicValues: { ...(dynamicValues[currentType] || {}) },
-    adjustments: { ...adjustments },
-    items,
-    subtotal,
-    commissionAmt,
-    gstAmt,
-    discount: num(adjustments.discount),
-    grandTotal,
-  });
+  const handleAddWindow = () => {
+    if (!hasActiveDimensions) {
+      if (showToast) showToast('પહેલા ઊંચાઈ અને પહોળાઈ દાખલ કરો!');
+      return;
+    }
+
+    const newWin = {
+      id: generateId(),
+      roomName: roomName.trim() || `બારી ${addedWindows.length + 1}`,
+      type: currentType,
+      typeName: cfg.name,
+      measurements: { ...measurements },
+      dynamicValues: { ...(dynamicValues[currentType] || {}) },
+      items: activeItems,
+      subtotal: activeSubtotal,
+    };
+
+    const nextCount = addedWindows.length + 2;
+    setAddedWindows((prev) => [...prev, newWin]);
+    setRoomName(`બારી ${nextCount}`);
+    setMeasurements((prev) => ({ ...prev, height: '', width: '' }));
+    if (showToast) showToast(`"${newWin.roomName}" ઉમેરાઈ! હવે બીજી બારીનું માપ નાખો.`);
+  };
+
+  const handleRemoveAddedWindow = (winId) => {
+    setAddedWindows((prev) => prev.filter((w) => w.id !== winId));
+  };
+
+  const handleEditAddedWindow = (win) => {
+    setAddedWindows((prev) => prev.filter((w) => w.id !== win.id));
+    setRoomName(win.roomName || 'બારી');
+    setCurrentType(win.type || 'eyelet');
+    setMeasurements({ ...(win.measurements || { height: '', width: '', fullness: 2 }) });
+    if (win.dynamicValues && win.type) {
+      setDynamicValues((prev) => ({
+        ...prev,
+        [win.type]: { ...prev[win.type], ...win.dynamicValues },
+      }));
+    }
+  };
+
+  const buildRecord = (id) => {
+    const allWindows = [...addedWindows];
+    if (includeActiveInTotal) {
+      allWindows.push({
+        id: `${id}-active`,
+        roomName: roomName.trim() || `બારી ${addedWindows.length + 1}`,
+        type: currentType,
+        typeName: cfg.name,
+        measurements: { ...measurements },
+        dynamicValues: { ...(dynamicValues[currentType] || {}) },
+        items: activeItems,
+        subtotal: activeSubtotal,
+      });
+    }
+
+    if (allWindows.length <= 1) {
+      const only = allWindows[0] || {
+        type: currentType,
+        typeName: cfg.name,
+        roomName,
+        measurements: { ...measurements },
+        dynamicValues: { ...(dynamicValues[currentType] || {}) },
+        items: activeItems,
+        subtotal: activeSubtotal,
+      };
+      return {
+        id,
+        type: only.type,
+        typeName: only.typeName,
+        roomName: only.roomName,
+        customer: { ...customer },
+        measurements: { ...only.measurements },
+        dynamicValues: { ...(only.dynamicValues || {}) },
+        adjustments: { ...adjustments },
+        items: only.items,
+        subtotal,
+        commissionAmt,
+        gstAmt,
+        discount: num(adjustments.discount),
+        advance: num(adjustments.advance),
+        status: adjustments.status || 'pending',
+        grandTotal,
+      };
+    }
+
+    return {
+      id,
+      type: 'multi',
+      typeName: `કુલ ${allWindows.length} બારી / રૂમ પડદા`,
+      customer: { ...customer },
+      windows: allWindows,
+      adjustments: { ...adjustments },
+      items: allWindows.flatMap((w) => w.items || []),
+      subtotal,
+      commissionAmt,
+      gstAmt,
+      discount: num(adjustments.discount),
+      advance: num(adjustments.advance),
+      status: adjustments.status || 'pending',
+      grandTotal,
+    };
+  };
+
+  const handleTransferToCombinedQuote = () => {
+    if (!onAddToMainQuote) return;
+    if (addedWindows.length === 0 && !hasActiveDimensions) {
+      if (showToast) showToast('પહેલા પડદાનું માપ દાખલ કરો!');
+      return;
+    }
+
+    const rec = buildRecord(generateId());
+    const breakdown = [];
+    if (Array.isArray(rec.windows) && rec.windows.length > 0) {
+      rec.windows.forEach((win, idx) => {
+        breakdown.push({
+          label: `${idx + 1}. ${win.roomName || `બારી ${idx + 1}`} (${win.typeName})`,
+          value: `${win.measurements?.height || 0}" × ${win.measurements?.width || 0}"`,
+          amount: Math.round(win.subtotal || 0),
+        });
+      });
+    } else {
+      (rec.items || []).forEach((it) => {
+        breakdown.push({
+          label: it.label,
+          value: `${rec.typeName} (${rec.measurements?.height || 0}" × ${rec.measurements?.width || 0}")`,
+          amount: Math.round(it.value || 0),
+        });
+      });
+    }
+
+    const cartItem = {
+      id: generateId(),
+      serviceType: 'curtains',
+      serviceLabel: rec.typeName || 'પડદા બનાવવા માટે',
+      curtainRecord: rec,
+      breakdown,
+      subtotal: Math.round(rec.subtotal || 0),
+    };
+
+    onAddToMainQuote(cartItem, customer);
+  };
 
   const handleSaveQuotation = () => {
     const existingList = loadCurtainQuotations();
@@ -224,36 +405,21 @@ export default function CurtainCalculator({
       <div className="workspace-grid">
         {/* Left Column: Inputs */}
         <div className="workspace-main">
-          <div className="form-card no-print">
-            <div className="form-section-title">પડદા નો પ્રકાર પસંદ કરો</div>
-            <div className="tab-group" style={{ marginBottom: 0 }}>
-              {Object.keys(CURTAIN_CONFIG).map((key) => {
-                const item = CURTAIN_CONFIG[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`tab maroon ${currentType === key ? 'active' : ''}`}
-                    onClick={() => handleSelectType(key)}
-                  >
-                    {item.name} ({item.englishName})
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div className="form-card">
             <div className="form-section-title">ગ્રાહક ની વિગત</div>
-            <div className="form-row three">
+            <div className="form-row three" style={{ marginBottom: 0 }}>
               <div className="form-group">
                 <label>ગ્રાહકનું નામ</label>
-                <input
-                  type="text"
+                <CustomerNameField
                   value={customer.name}
+                  phoneValue={customer.phone}
+                  savedCustomers={savedCustomers}
                   placeholder="e.g. નરેશભાઈ"
-                  onChange={(e) =>
-                    setCustomer((prev) => ({ ...prev, name: e.target.value }))
+                  onChangeName={(val) =>
+                    setCustomer((prev) => ({ ...prev, name: val }))
+                  }
+                  onChangePhone={(val) =>
+                    setCustomer((prev) => ({ ...prev, phone: val }))
                   }
                 />
               </div>
@@ -281,9 +447,40 @@ export default function CurtainCalculator({
             </div>
           </div>
 
+          <div className="form-card no-print">
+            <div className="form-section-title">પડદા નો પ્રકાર અને રૂમ/બારી</div>
+            <div className="tab-group" style={{ marginBottom: '14px' }}>
+              {Object.keys(CURTAIN_CONFIG).map((key) => {
+                const item = CURTAIN_CONFIG[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`tab maroon ${currentType === key ? 'active' : ''}`}
+                    onClick={() => handleSelectType(key)}
+                  >
+                    {item.name} ({item.englishName})
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="form-row single" style={{ marginBottom: 0 }}>
+              <div className="form-group">
+                <label>રૂમ / બારીનું નામ (દા.ત. હોલ બારી, બેડરૂમ)</label>
+                <input
+                  type="text"
+                  value={roomName}
+                  placeholder="દા.ત. હોલ બારી"
+                  onChange={(e) => setRoomName(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="form-card">
-            <div className="form-section-title">માપ અને પ્લીટિંગ</div>
-            <div className="form-row three">
+            <div className="form-section-title">માપ અને પ્લીટિંગ ({roomName || 'બારી'})</div>
+            <div className="form-row three" style={{ marginBottom: 0 }}>
               <div className="form-group">
                 <label>ઊંચાઈ - Height (ઇંચ)</label>
                 <input
@@ -332,7 +529,7 @@ export default function CurtainCalculator({
             <div className="form-section-title">
               દરો અને ખર્ચ ({cfg.name})
             </div>
-            <div className="form-row">
+            <div className="form-row" style={{ marginBottom: 0 }}>
               {cfg.fields.map((f) => {
                 const currentVal =
                   dynamicValues[currentType]?.[f.key] !== undefined
@@ -355,7 +552,7 @@ export default function CurtainCalculator({
           </div>
 
           <div className="form-card no-print">
-            <div className="form-section-title">કમિશન, જીએસટી અને ડિસ્કાઉન્ટ</div>
+            <div className="form-section-title">કમિશન, જીએસટી, બાનું અને સ્ટેટસ</div>
             <div className="form-row three">
               <div className="form-group">
                 <label>કમિશન (%)</label>
@@ -401,15 +598,97 @@ export default function CurtainCalculator({
                 />
               </div>
             </div>
+
+            <div className="form-row" style={{ marginBottom: 0, alignItems: 'end' }}>
+              <div className="form-group">
+                <label>એડવાન્સ / બાનું (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={adjustments.advance}
+                  onChange={(e) =>
+                    setAdjustments((prev) => ({
+                      ...prev,
+                      advance: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>ઓર્ડર સ્ટેટસ</label>
+                <div className="tab-group" style={{ marginBottom: 0 }}>
+                  {ORDER_STATUSES.map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      className={`tab maroon ${adjustments.status === st.id ? 'active' : ''}`}
+                      style={{ padding: '8px 12px', fontSize: '12px' }}
+                      onClick={() =>
+                        setAdjustments((prev) => ({ ...prev, status: st.id }))
+                      }
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Sticky Live Summary */}
+        {/* Right Column: Sticky Live Summary + Multi-Window List */}
         <aside className="workspace-side">
           <div className="sticky-panel">
+            {addedWindows.length > 0 && (
+              <div className="form-card cart-summary-card">
+                <div className="form-section-title">
+                  ઉમેરેલા પડદા / બારીઓ ({addedWindows.length})
+                </div>
+                {addedWindows.map((win) => (
+                  <div key={win.id} className="cart-item-pill">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="cart-item-title">
+                        {win.roomName} · {win.typeName}
+                      </div>
+                      <div className="cart-item-amt">
+                        {win.measurements?.height || 0}"×{win.measurements?.width || 0}" ·{' '}
+                        {fmtCurtain(win.subtotal)}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        type="button"
+                        className="btn-mini"
+                        onClick={() => handleEditAddedWindow(win)}
+                        title="સુધારો"
+                      >
+                        <EditIcon size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-icon-del"
+                        onClick={() => handleRemoveAddedWindow(win.id)}
+                        title="દૂર કરો"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {includeActiveInTotal && (
+                  <div className="cart-active-row">
+                    <span>હાલની બારી ({roomName || 'નવી'}):</span>
+                    <strong>{fmtCurtain(activeSubtotal)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="totals-card">
-              <div className="form-section-title">વિગતવાર ગણતરી (Breakdown)</div>
-              {items.map((item, idx) => (
+              <div className="form-section-title">
+                વિગતવાર ગણતરી ({roomName || 'હાલની બારી'})
+              </div>
+              {activeItems.map((item, idx) => (
                 <div key={idx} className="total-row">
                   <span>{item.label}</span>
                   <span>{fmtCurtain(item.value)}</span>
@@ -417,8 +696,14 @@ export default function CurtainCalculator({
               ))}
 
               <div style={{ marginTop: '14px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+                {addedWindows.length > 0 && (
+                  <div className="total-row">
+                    <span>અગાઉની બારીઓ ({addedWindows.length})</span>
+                    <span>{fmtCurtain(addedSubtotal)}</span>
+                  </div>
+                )}
                 <div className="total-row">
-                  <span>Subtotal</span>
+                  <span>પેટા-કુલ (Subtotal)</span>
                   <span>{fmtCurtain(subtotal)}</span>
                 </div>
                 <div className="total-row">
@@ -426,20 +711,52 @@ export default function CurtainCalculator({
                   <span>{fmtCurtain(commissionAmt)}</span>
                 </div>
                 <div className="total-row">
-                  <span>+ GST ({adjustments.gst}%)</span>
+                  <span>+ જીએસટી (GST {adjustments.gst}%)</span>
                   <span>{fmtCurtain(gstAmt)}</span>
                 </div>
                 <div className="total-row">
-                  <span>− ડિસ્કાઉન્ટ</span>
+                  <span>− ડિસ્કાઉન્ટ (Discount)</span>
                   <span>{fmtCurtain(num(adjustments.discount))}</span>
                 </div>
                 <div className="total-row grand curtain">
-                  <span>કુલ રકમ</span>
+                  <span>કુલ રકમ (Grand Total)</span>
                   <span>{fmtCurtain(grandTotal)}</span>
                 </div>
+                {num(adjustments.advance) > 0 && (
+                  <>
+                    <div className="total-row" style={{ marginTop: '6px' }}>
+                      <span>એડવાન્સ / બાનું (Advance)</span>
+                      <span>− {fmtCurtain(num(adjustments.advance))}</span>
+                    </div>
+                    <div className="total-row balance-due">
+                      <span>બાકી રકમ (Balance Due)</span>
+                      <span>
+                        {fmtCurtain(Math.max(0, grandTotal - num(adjustments.advance)))}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="side-actions no-print">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-full"
+                  onClick={handleAddWindow}
+                >
+                  <PlusIcon size={17} />
+                  <span>બીજો પડદો / બારી ઉમેરો</span>
+                </button>
+                {onAddToMainQuote && !isEditing && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-full"
+                    onClick={handleTransferToCombinedQuote}
+                  >
+                    <CartPlusIcon size={17} />
+                    <span>મુખ્ય કોટેશનમાં ઉમેરો (Sofa + પડદા)</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-maroon btn-full"

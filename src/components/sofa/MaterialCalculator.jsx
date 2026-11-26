@@ -8,6 +8,10 @@ import {
 } from '../../utils/sofaMaterialCalculator';
 import { generateId } from '../../utils/id';
 import { num } from '../../utils/formatters';
+import {
+  buildKarigarWhatsAppMessage,
+  shareOnWhatsApp,
+} from '../../utils/whatsappShare';
 import SofaLayoutDiagram from './SofaLayoutDiagram';
 import {
   ArrowLeftIcon,
@@ -16,6 +20,8 @@ import {
   SofaIcon,
   PlusIcon,
   RestoreIcon,
+  PrintIcon,
+  WhatsAppIcon,
 } from '../common/Icons';
 
 const TEKO_MODES = [
@@ -35,6 +41,8 @@ const SHAPES = [
 export default function MaterialCalculator({
   onBackToHome,
   onTransferToQuote,
+  settings,
+  showToast,
 }) {
   // Purpose: 'full_sofa' (આખો સોફો બનાવવા) | 'sofa_cover' (સોફા ના કવર માટે)
   const [purpose, setPurpose] = useState('full_sofa');
@@ -184,8 +192,36 @@ export default function MaterialCalculator({
   const { tekoPacked } = kapad;
   const hasLounger = sections.some((s) => s.type === 'lounger');
 
+  const handleKarigarWhatsApp = () => {
+    const message = buildKarigarWhatsAppMessage({
+      purpose,
+      sections,
+      handleCount: num(handleCount),
+      totalSofaFeet,
+      kapad,
+      coverKapad,
+      settings,
+    });
+    shareOnWhatsApp({ phone: '', message, showToast });
+  };
+
+  const handleKarigarPrint = () => {
+    window.print();
+  };
+
   return (
     <div>
+      {/* Print-Only Header for Karigar Cutting Sheet */}
+      <div className="print-only-header">
+        <h2>{settings?.shopName || 'Sofa Craft'} — કારીગર કટિંગ શીટ</h2>
+        <p>
+          કામ:{' '}
+          {purpose === 'sofa_cover'
+            ? `સોફા ના કવર (${coverSubType === 'sponge' ? 'સ્પંચવાળા' : 'સાદા'})`
+            : 'આખો સોફો (54" પનો)'}{' '}
+          · કુલ માપ: {totalSofaFeet} ફૂટ · હેન્ડલ: {num(handleCount)} નંગ
+        </p>
+      </div>
       <div className="form-header no-print">
         <button
           type="button"
@@ -725,6 +761,24 @@ export default function MaterialCalculator({
                     <span>જૂના સોફા કોટેશનમાં ઉમેરો</span>
                     <ArrowRightIcon size={17} />
                   </button>
+                  <div className="karigar-btn-row">
+                    <button
+                      type="button"
+                      className="btn btn-whatsapp"
+                      onClick={handleKarigarWhatsApp}
+                    >
+                      <WhatsAppIcon size={16} />
+                      <span>કારીગર શીટ</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handleKarigarPrint}
+                    >
+                      <PrintIcon size={16} />
+                      <span>શીટ પ્રિન્ટ</span>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="btn btn-secondary btn-full"
@@ -876,6 +930,24 @@ export default function MaterialCalculator({
                     </span>
                     <ArrowRightIcon size={17} />
                   </button>
+                  <div className="karigar-btn-row">
+                    <button
+                      type="button"
+                      className="btn btn-whatsapp"
+                      onClick={handleKarigarWhatsApp}
+                    >
+                      <WhatsAppIcon size={16} />
+                      <span>કારીગર શીટ</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handleKarigarPrint}
+                    >
+                      <PrintIcon size={16} />
+                      <span>શીટ પ્રિન્ટ</span>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="btn btn-secondary btn-full"

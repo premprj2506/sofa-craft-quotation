@@ -1,4 +1,6 @@
-import { fmtCurtain } from '../../utils/formatters';
+import { Fragment, useState } from 'react';
+import { fmtCurtain, num } from '../../utils/formatters';
+import { ORDER_STATUSES, getStatusMeta } from '../../constants/orderStatus';
 import { exportCurtainPDF } from '../../utils/pdfExport';
 import {
   buildCurtainWhatsAppMessage,
@@ -21,8 +23,13 @@ export default function CurtainDetail({
   onEdit,
   onDuplicate,
   onDelete,
+  onUpdateQuoteMeta,
   showToast,
 }) {
+  const [draftAdvance, setDraftAdvance] = useState(() =>
+    quote?.advance > 0 ? String(quote.advance) : ''
+  );
+
   if (!quote) {
     return (
       <div className="empty-state">
@@ -34,6 +41,11 @@ export default function CurtainDetail({
       </div>
     );
   }
+
+  const isMulti = Array.isArray(quote.windows) && quote.windows.length > 0;
+  const adv = Math.max(0, num(quote.advance));
+  const balance = Math.max(0, num(quote.grandTotal) - adv);
+  const statusMeta = getStatusMeta(quote.status);
 
   const handleDelete = () => {
     if (window.confirm('આ પડદા કોટેશન ખરેખર ડિલીટ કરવું છે?')) {
@@ -70,22 +82,30 @@ export default function CurtainDetail({
 
           <div className="quote-meta-grid">
             <div className="meta-item">
-              <div className="label">Customer (ગ્રાહક)</div>
+              <div className="label">ગ્રાહક (Customer)</div>
               <div className="value">{quote.customer?.name || '—'}</div>
             </div>
             <div className="meta-item">
-              <div className="label">Phone (ફોન)</div>
+              <div className="label">ફોન નંબર (Phone)</div>
               <div className="value">{quote.customer?.phone || '—'}</div>
             </div>
             <div className="meta-item">
-              <div className="label">Date (તારીખ)</div>
+              <div className="label">તારીખ (Date)</div>
               <div className="value">{quote.customer?.date || '—'}</div>
             </div>
             <div className="meta-item">
               <div className="label">પડદાનો પ્રકાર</div>
               <div className="value">{quote.typeName}</div>
             </div>
-            {quote.measurements && (
+            <div className="meta-item">
+              <div className="label">સ્ટેટસ (Status)</div>
+              <div className="value">
+                <span className={`status-pill status-${statusMeta.id}`}>
+                  {statusMeta.label}
+                </span>
+              </div>
+            </div>
+            {!isMulti && quote.measurements && (
               <>
                 <div className="meta-item">
                   <div className="label">ઊંચાઈ × પહોળાઈ</div>
@@ -111,41 +131,126 @@ export default function CurtainDetail({
               </tr>
             </thead>
             <tbody>
-              {(quote.items || []).map((item, idx) => (
-                <tr key={idx}>
-                  <td>{item.label}</td>
-                  <td style={{ color: 'var(--text2)', fontSize: '12px' }}>—</td>
-                  <td>{fmtCurtain(item.value)}</td>
-                </tr>
-              ))}
+              {isMulti ? (
+                quote.windows.map((win, wIdx) => (
+                  <Fragment key={win.id || wIdx}>
+                    <tr className="breakdown-group-row">
+                      <td colSpan="3" style={{ color: 'var(--curtain-maroon)', background: '#fbf0f2' }}>
+                        {wIdx + 1}. {win.roomName || `બારી ${wIdx + 1}`} — {win.typeName} (
+                        {win.measurements?.height || 0}" × {win.measurements?.width || 0}") ·{' '}
+                        {fmtCurtain(win.subtotal)}
+                      </td>
+                    </tr>
+                    {(win.items || []).map((item, iIdx) => (
+                      <tr key={`row-${wIdx}-${iIdx}`}>
+                        <td>{item.label}</td>
+                        <td style={{ color: 'var(--text2)', fontSize: '12px' }}>—</td>
+                        <td>{fmtCurtain(item.value)}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))
+              ) : (
+                (quote.items || []).map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.label}</td>
+                    <td style={{ color: 'var(--text2)', fontSize: '12px' }}>—</td>
+                    <td>{fmtCurtain(item.value)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
 
           <div className="form-section-title" style={{ marginTop: '20px' }}>
-            Totals (કુલ રકમ)
+            કુલ રકમ (Totals)
           </div>
           <div className="total-row">
-            <span>Subtotal</span>
+            <span>પેટા-કુલ (Subtotal)</span>
             <span>{fmtCurtain(quote.subtotal)}</span>
           </div>
           <div className="total-row">
-            <span>+ કમિશન</span>
+            <span>+ કમિશન (Commission)</span>
             <span>{fmtCurtain(quote.commissionAmt)}</span>
           </div>
           <div className="total-row">
-            <span>+ GST</span>
+            <span>+ જીએસટી (GST)</span>
             <span>{fmtCurtain(quote.gstAmt)}</span>
           </div>
           <div className="total-row">
-            <span>− ડિસ્કાઉન્ટ</span>
+            <span>− ડિસ્કાઉન્ટ (Discount)</span>
             <span>{fmtCurtain(quote.discount)}</span>
           </div>
           <div className="total-row grand curtain">
-            <span>Grand Total</span>
+            <span>કુલ રકમ (Grand Total)</span>
             <span>{fmtCurtain(quote.grandTotal)}</span>
           </div>
+          {adv > 0 && (
+            <>
+              <div className="total-row">
+                <span>એડવાન્સ / બાનું (Advance)</span>
+                <span>- {fmtCurtain(adv)}</span>
+              </div>
+              <div className="total-row balance-due">
+                <span>બાકી રકમ (Balance Due)</span>
+                <span>{fmtCurtain(balance)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {onUpdateQuoteMeta && (
+        <div className="form-card quick-status-card no-print">
+          <div className="form-section-title">
+            ઓર્ડર સ્ટેટસ અને બાનું અપડેટ (Quick Update)
+          </div>
+          <div className="quick-status-grid">
+            <div>
+              <div className="input-label">સ્ટેટસ બદલો</div>
+              <div className="status-pills-row">
+                {ORDER_STATUSES.map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    className={`status-choice-btn ${statusMeta.id === st.id ? `active status-${st.id}` : ''}`}
+                    onClick={() => onUpdateQuoteMeta(quote.id, { status: st.id })}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="input-label" htmlFor="curtain-detail-advance">
+                એડવાન્સ / બાનું (₹)
+              </label>
+              <div className="quick-advance-row">
+                <input
+                  id="curtain-detail-advance"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={draftAdvance}
+                  onChange={(e) => setDraftAdvance(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-maroon"
+                  style={{ padding: '9px 14px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                  onClick={() =>
+                    onUpdateQuoteMeta(quote.id, {
+                      advance: Math.max(0, num(draftAdvance)),
+                    })
+                  }
+                >
+                  બાનું સેવ કરો
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="actions no-print">
         <button

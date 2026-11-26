@@ -1,4 +1,4 @@
-import { fmt, fmtCurtain } from './formatters.js';
+import { fmt, fmtCurtain, num } from './formatters.js';
 
 /**
  * Renders a structured quotation onto high-DPI HTML5 Canvas pages so that
@@ -224,12 +224,12 @@ function renderInvoiceToPDF({
     ctx.strokeRect(totalsBoxX - 20, y - 28, totalsBoxW + 20, 62);
 
     ctx.fillStyle = '#1a1917';
-    ctx.font = `700 26px ${FONT_SERIF}`;
+    ctx.font = `700 23px ${FONT_SERIF}`;
     ctx.textAlign = 'left';
-    ctx.fillText(grandTotalLabel, totalsBoxX, y + 12);
+    ctx.fillText(grandTotalLabel, totalsBoxX - 4, y + 12);
 
     ctx.fillStyle = accentHex;
-    ctx.font = `700 28px ${FONT_SERIF}`;
+    ctx.font = `700 27px ${FONT_SERIF}`;
     ctx.textAlign = 'right';
     ctx.fillText(grandTotalValue, W - MARGIN_X - 10, y + 12);
 
@@ -293,11 +293,24 @@ export function exportSofaPDF(quote, showToast, settings) {
   }));
 
   const totalLines = [
-    ['Subtotal', `₹ ${fmt(t.sub)}`],
-    [`Commission (${quote.commission || 0}%)`, `₹ ${fmt(t.commission)}`],
-    ['Discount', `- ₹ ${fmt(t.disc || quote.discount || 0)}`],
-    [`GST (${quote.gst || 0}%)`, `₹ ${fmt(t.gstAmt)}`],
+    ['પેટા-કુલ (Subtotal)', `₹ ${fmt(t.sub)}`],
+    [`+ કમિશન (Commission ${quote.commission || 0}%)`, `₹ ${fmt(t.commission)}`],
+    ['− ડિસ્કાઉન્ટ (Discount)', `- ₹ ${fmt(t.disc || quote.discount || 0)}`],
+    [`+ જીએસટી (GST ${quote.gst || 0}%)`, `₹ ${fmt(t.gstAmt)}`],
   ];
+
+  const adv = num(quote.advance);
+  let sofaFinalLabel = 'કુલ રકમ (Grand Total)';
+  let sofaFinalValue = `₹ ${fmt(t.grand)}`;
+  if (adv > 0) {
+    const balance = Math.max(0, num(t.grand) - adv);
+    totalLines.push(
+      ['કુલ રકમ (Grand Total)', `₹ ${fmt(t.grand)}`],
+      ['એડવાન્સ / બાનું (Advance)', `- ₹ ${fmt(adv)}`]
+    );
+    sofaFinalLabel = 'બાકી રકમ (Balance Due)';
+    sofaFinalValue = `₹ ${fmt(balance)}`;
+  }
 
   const custSanitized = (quote.customerName || 'customer').replace(/\s+/g, '_');
 
@@ -307,13 +320,13 @@ export function exportSofaPDF(quote, showToast, settings) {
     shopPhone: settings?.shopPhone,
     shopAddress: settings?.shopAddress,
     metaRows,
-    tableHeaders: ['વિગત (Item)', 'માપ / દર (Details)', 'રકમ (Amount)'],
+    tableHeaders: ['વિગત (Item)', 'માપ / વિગત (Details)', 'રકમ (Amount)'],
     rows,
     totalLines,
-    grandTotalLabel: 'કુલ રકમ',
-    grandTotalValue: `₹ ${fmt(t.grand)}`,
+    grandTotalLabel: sofaFinalLabel,
+    grandTotalValue: sofaFinalValue,
     accentHex: '#c17f3a',
-    footerNote: settings?.quoteNote || 'This is a computer-generated quotation.',
+    footerNote: settings?.quoteNote || 'આ કોમ્પ્યુટર દ્વારા જનરેટ કરેલ કોટેશન છે.',
     fileName: `quotation_${custSanitized}_${quote.id || Date.now()}.pdf`,
     showToast,
   });
@@ -321,6 +334,7 @@ export function exportSofaPDF(quote, showToast, settings) {
 
 export function exportCurtainPDF(quote, showToast, settings) {
   const shopName = settings?.shopName || 'Sofa Craft';
+  const isMulti = Array.isArray(quote.windows) && quote.windows.length > 0;
 
   const metaRows = [
     { label: 'ગ્રાહક (Customer)', value: quote.customer?.name || '—' },
@@ -329,31 +343,63 @@ export function exportCurtainPDF(quote, showToast, settings) {
     { label: 'પડદા પ્રકાર', value: quote.typeName || 'Curtain Quotation' },
   ];
 
-  if (quote.measurements) {
-    metaRows.push(
-      {
-        label: 'ઊંચાઈ × પહોળાઈ',
-        value: `${quote.measurements.height || 0}" × ${quote.measurements.width || 0}"`,
-      },
-      {
-        label: 'ચપટી (Fullness)',
-        value: String(quote.measurements.fullness || '—'),
-      }
-    );
+  let rows = [];
+  if (isMulti) {
+    quote.windows.forEach((win, idx) => {
+      rows.push({
+        header: true,
+        label: `${idx + 1}. ${win.roomName || `બારી ${idx + 1}`} — ${win.typeName} (${win.measurements?.height || 0}" × ${win.measurements?.width || 0}")`,
+        details: '',
+        amount: '',
+      });
+      (win.items || []).forEach((item) => {
+        rows.push({
+          label: item.label,
+          details: '',
+          amount: fmtCurtain(item.value),
+        });
+      });
+    });
+  } else {
+    if (quote.measurements) {
+      metaRows.push(
+        {
+          label: 'ઊંચાઈ × પહોળાઈ',
+          value: `${quote.measurements.height || 0}" × ${quote.measurements.width || 0}"`,
+        },
+        {
+          label: 'ચપટી (Fullness)',
+          value: String(quote.measurements.fullness || '—'),
+        }
+      );
+    }
+
+    rows = (quote.items || []).map((item) => ({
+      label: item.label,
+      details: '',
+      amount: fmtCurtain(item.value),
+    }));
   }
 
-  const rows = (quote.items || []).map((item) => ({
-    label: item.label,
-    details: '',
-    amount: fmtCurtain(item.value),
-  }));
-
   const totalLines = [
-    ['Subtotal', fmtCurtain(quote.subtotal)],
-    ['+ કમિશન', fmtCurtain(quote.commissionAmt)],
-    ['+ GST', fmtCurtain(quote.gstAmt)],
-    ['− ડિસ્કાઉન્ટ', fmtCurtain(quote.discount)],
+    ['પેટા-કુલ (Subtotal)', fmtCurtain(quote.subtotal)],
+    ['+ કમિશન (Commission)', fmtCurtain(quote.commissionAmt)],
+    ['+ જીએસટી (GST)', fmtCurtain(quote.gstAmt)],
+    ['− ડિસ્કાઉન્ટ (Discount)', fmtCurtain(quote.discount)],
   ];
+
+  const adv = num(quote.advance);
+  let curtainFinalLabel = 'કુલ રકમ (Grand Total)';
+  let curtainFinalValue = fmtCurtain(quote.grandTotal);
+  if (adv > 0) {
+    const balance = Math.max(0, num(quote.grandTotal) - adv);
+    totalLines.push(
+      ['કુલ રકમ (Grand Total)', fmtCurtain(quote.grandTotal)],
+      ['એડવાન્સ / બાનું (Advance)', `- ${fmtCurtain(adv)}`]
+    );
+    curtainFinalLabel = 'બાકી રકમ (Balance Due)';
+    curtainFinalValue = fmtCurtain(balance);
+  }
 
   const custSanitized = (quote.customer?.name || 'curtain').replace(/\s+/g, '_');
 
@@ -363,13 +409,13 @@ export function exportCurtainPDF(quote, showToast, settings) {
     shopPhone: settings?.shopPhone,
     shopAddress: settings?.shopAddress,
     metaRows,
-    tableHeaders: ['વિગત (Particulars)', '', 'રકમ (Amount)'],
+    tableHeaders: ['વિગત (Item)', '', 'રકમ (Amount)'],
     rows,
     totalLines,
-    grandTotalLabel: 'કુલ રકમ',
-    grandTotalValue: fmtCurtain(quote.grandTotal),
+    grandTotalLabel: curtainFinalLabel,
+    grandTotalValue: curtainFinalValue,
     accentHex: '#7a2e3b',
-    footerNote: settings?.quoteNote || 'This is a computer-generated quotation.',
+    footerNote: settings?.quoteNote || 'આ કોમ્પ્યુટર દ્વારા જનરેટ કરેલ કોટેશન છે.',
     fileName: `curtain_${custSanitized}_${quote.id || Date.now()}.pdf`,
     showToast,
   });

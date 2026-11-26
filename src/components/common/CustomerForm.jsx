@@ -1,7 +1,10 @@
+import CustomerNameField from './CustomerNameField';
+
 export default function CustomerForm({
   customerName,
   customerPhone,
   quotationDate,
+  savedCustomers = [],
   onChange,
 }) {
   return (
@@ -10,11 +13,13 @@ export default function CustomerForm({
       <div className="form-row three">
         <div className="form-group">
           <label>ગ્રાહકનું નામ (Customer Name)</label>
-          <input
-            type="text"
-            value={customerName || ''}
+          <CustomerNameField
+            value={customerName}
+            phoneValue={customerPhone}
+            savedCustomers={savedCustomers}
             placeholder="e.g. રમેશભાઈ પટેલ"
-            onChange={(e) => onChange('customerName', e.target.value)}
+            onChangeName={(val) => onChange('customerName', val)}
+            onChangePhone={(val) => onChange('customerPhone', val)}
           />
         </div>
         <div className="form-group">

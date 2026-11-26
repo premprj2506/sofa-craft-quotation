@@ -1,4 +1,5 @@
-import { fmt } from '../../utils/formatters';
+import { fmt, num } from '../../utils/formatters';
+import { getStatusMeta } from '../../constants/orderStatus';
 import {
   buildSofaWhatsAppMessage,
   shareOnWhatsApp,
@@ -24,6 +25,8 @@ export default function QuotationPreview({
   commission,
   gst,
   discount,
+  advance = 0,
+  status = 'pending',
   isEditing,
   settings,
   onSave,
@@ -33,6 +36,9 @@ export default function QuotationPreview({
 }) {
   const isMatt = service?.id === 'mattress';
   const resolvedLabel = serviceLabel || service?.label || '';
+  const adv = Math.max(0, num(advance));
+  const balance = Math.max(0, num(totals?.grand) - adv);
+  const statusMeta = getStatusMeta(status);
 
   const handleWhatsApp = () => {
     const mockQuote = {
@@ -46,6 +52,8 @@ export default function QuotationPreview({
       commission,
       gst,
       discount,
+      advance: adv,
+      status,
       breakdown,
       totals,
     };
@@ -85,34 +93,42 @@ export default function QuotationPreview({
 
           <div className="quote-meta-grid">
             <div className="meta-item">
-              <div className="label">Customer (ગ્રાહક)</div>
+              <div className="label">ગ્રાહક (Customer)</div>
               <div className="value">{customerName || '—'}</div>
             </div>
             <div className="meta-item">
-              <div className="label">Phone (ફોન)</div>
+              <div className="label">ફોન નંબર (Phone)</div>
               <div className="value">{customerPhone || '—'}</div>
             </div>
             <div className="meta-item">
-              <div className="label">Date (તારીખ)</div>
+              <div className="label">તારીખ (Date)</div>
               <div className="value">{quotationDate}</div>
             </div>
             <div className="meta-item">
-              <div className="label">Service (સેવા)</div>
+              <div className="label">સેવા (Service)</div>
               <div className="value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {service && <ServiceIcon id={service.id} size={16} />}
                 <span>{resolvedLabel}</span>
               </div>
             </div>
+            <div className="meta-item">
+              <div className="label">સ્ટેટસ (Status)</div>
+              <div className="value">
+                <span className={`status-pill status-${statusMeta.id}`}>
+                  {statusMeta.label}
+                </span>
+              </div>
+            </div>
             {isMatt && (
               <>
                 <div className="meta-item">
-                  <div className="label">Mattress (જાડાઈ)</div>
+                  <div className="label">ગાદલાની જાડાઈ</div>
                   <div className="value">
                     {mattressThickness === '4inch' ? '4 Inch' : '6 Inch'}
                   </div>
                 </div>
                 <div className="meta-item">
-                  <div className="label">Warranty (વોરંટી)</div>
+                  <div className="label">વોરંટી (Warranty)</div>
                   <div className="value">
                     {mattressWarranty === '10year' ? '10-Year' : '15-Year'}
                   </div>
@@ -121,13 +137,13 @@ export default function QuotationPreview({
             )}
           </div>
 
-          <div className="form-section-title">Breakdown (વિગતવાર ખર્ચ)</div>
+          <div className="form-section-title">વિગતવાર ખર્ચ (Breakdown)</div>
           <table className="breakdown-table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Details</th>
-                <th>Amount</th>
+                <th>વિગત (Item)</th>
+                <th>માપ / વિગત (Details)</th>
+                <th>રકમ (Amount)</th>
               </tr>
             </thead>
             <tbody>
@@ -166,28 +182,40 @@ export default function QuotationPreview({
           </table>
 
           <div className="form-section-title" style={{ marginTop: '20px' }}>
-            Totals (કુલ ગણતરી)
+            કુલ ગણતરી (Totals)
           </div>
           <div className="total-row">
-            <span>Subtotal</span>
+            <span>પેટા-કુલ (Subtotal)</span>
             <span>₹ {fmt(totals.sub)}</span>
           </div>
           <div className="total-row">
-            <span>Commission ({commission}%)</span>
+            <span>+ કમિશન (Commission {commission}%)</span>
             <span>₹ {fmt(totals.commission)}</span>
           </div>
           <div className="total-row">
-            <span>Discount</span>
+            <span>− ડિસ્કાઉન્ટ (Discount)</span>
             <span>- ₹ {fmt(totals.disc)}</span>
           </div>
           <div className="total-row">
-            <span>GST ({gst}%)</span>
+            <span>+ જીએસટી (GST {gst}%)</span>
             <span>₹ {fmt(totals.gstAmt)}</span>
           </div>
           <div className="total-row grand">
-            <span>Grand Total</span>
+            <span>કુલ રકમ (Grand Total)</span>
             <span>₹ {fmt(totals.grand)}</span>
           </div>
+          {adv > 0 && (
+            <>
+              <div className="total-row">
+                <span>એડવાન્સ / બાનું (Advance)</span>
+                <span>- ₹ {fmt(adv)}</span>
+              </div>
+              <div className="total-row balance-due">
+                <span>બાકી રકમ (Balance Due)</span>
+                <span>₹ {fmt(balance)}</span>
+              </div>
+            </>
+          )}
 
           {settings?.quoteNote && (
             <div className="quote-footer-note">{settings.quoteNote}</div>
