@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Header from './components/common/Header';
 import MobileNav from './components/common/MobileNav';
 import Toast from './components/common/Toast';
@@ -44,6 +44,7 @@ import {
 import {
   loadSettings,
   saveSettings,
+  normalizeSettings,
   getServiceDefaultsFromSettings,
   getMattressCompanies,
   getMattressCompany,
@@ -97,6 +98,13 @@ export default function App() {
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState('');
+  const toastTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const totalQuotesCount = quotations.length + curtainQuotations.length;
   const savedCustomers = useMemo(
@@ -105,8 +113,9 @@ export default function App() {
   );
 
   const showToast = (msg) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMessage(msg);
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage('');
     }, 2800);
   };
@@ -464,8 +473,11 @@ export default function App() {
         nextPage = 'summary';
       }
     } else {
+      const targetSvc = SERVICES.some((s) => s.id === quote.serviceType)
+        ? quote.serviceType
+        : null;
       setCartItems([]);
-      setSelectedService(quote.serviceType);
+      setSelectedService(targetSvc);
       setFormData({ ...(quote.formData || {}) });
       setCoverType(quote.coverType || 'simple');
       setBedType(quote.bedType || 'bed');
@@ -474,7 +486,8 @@ export default function App() {
       );
       setMattressThickness(quote.mattressThickness || null);
       setMattressWarranty(quote.mattressWarranty || null);
-      setMattressStep(quote.serviceType === 'mattress' ? 3 : 1);
+      setMattressStep(targetSvc === 'mattress' ? 3 : 1);
+      if (!targetSvc) nextPage = 'home';
     }
 
     showToast(
@@ -649,8 +662,9 @@ export default function App() {
     saveCurtainQuotations(mergedCurtain);
 
     if (backup.settings) {
-      setSettings(backup.settings);
-      saveSettings(backup.settings);
+      const safeSettings = normalizeSettings(backup.settings);
+      setSettings(safeSettings);
+      saveSettings(safeSettings);
     }
 
     showToast(

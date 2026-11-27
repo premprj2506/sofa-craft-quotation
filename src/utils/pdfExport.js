@@ -187,7 +187,8 @@ function renderInvoiceToPDF({
       y += 46;
     });
 
-    if (y > H - 300) {
+    const neededTotalsHeight = 24 + totalLines.length * 42 + 165;
+    if (y > H - neededTotalsHeight) {
       y = nextPage();
     }
 

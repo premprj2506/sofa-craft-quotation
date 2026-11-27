@@ -102,57 +102,64 @@ export const DEFAULT_SETTINGS = {
   },
 };
 
+export function normalizeSettings(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return structuredClone(DEFAULT_SETTINGS);
+  }
+
+  let companies;
+  if (
+    Array.isArray(parsed.rates?.mattressCompanies) &&
+    parsed.rates.mattressCompanies.length > 0
+  ) {
+    companies = normalizeMattressCompanies(parsed.rates.mattressCompanies);
+  } else {
+    companies = cloneDefaultCompanies();
+    // Preserve any legacy customized mattress rates on Kurlon if user edited them before companies existed
+    if (parsed.rates?.mattress) {
+      const legacy = parsed.rates.mattress;
+      const kurlon = companies.find((c) => c.id === 'kurlon');
+      if (kurlon) {
+        const w10 = kurlon.warranties.find((w) => w.id === '10year');
+        const w15 = kurlon.warranties.find((w) => w.id === '15year');
+        if (w10) {
+          if (legacy['4inch_10year'] != null) w10.rate4 = Number(legacy['4inch_10year']) || w10.rate4;
+          if (legacy['6inch_10year'] != null) w10.rate6 = Number(legacy['6inch_10year']) || w10.rate6;
+        }
+        if (w15) {
+          if (legacy['4inch_15year'] != null) w15.rate4 = Number(legacy['4inch_15year']) || w15.rate4;
+          if (legacy['6inch_15year'] != null) w15.rate6 = Number(legacy['6inch_15year']) || w15.rate6;
+        }
+      }
+    }
+  }
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...parsed,
+    rates: {
+      ...DEFAULT_SETTINGS.rates,
+      ...(parsed.rates || {}),
+      reupholstery: {
+        ...DEFAULT_SETTINGS.rates.reupholstery,
+        ...(parsed.rates?.reupholstery || {}),
+      },
+      mattress: {
+        ...DEFAULT_SETTINGS.rates.mattress,
+        ...(parsed.rates?.mattress || {}),
+      },
+      mattressCompanies: companies,
+      curtains: mergeCurtainRates(parsed.rates?.curtains),
+    },
+  };
+}
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const parsed = JSON.parse(raw);
-
-    let companies;
-    if (
-      Array.isArray(parsed.rates?.mattressCompanies) &&
-      parsed.rates.mattressCompanies.length > 0
-    ) {
-      companies = normalizeMattressCompanies(parsed.rates.mattressCompanies);
-    } else {
-      companies = cloneDefaultCompanies();
-      // Preserve any legacy customized mattress rates on Kurlon if user edited them before companies existed
-      if (parsed.rates?.mattress) {
-        const legacy = parsed.rates.mattress;
-        const kurlon = companies.find((c) => c.id === 'kurlon');
-        if (kurlon) {
-          const w10 = kurlon.warranties.find((w) => w.id === '10year');
-          const w15 = kurlon.warranties.find((w) => w.id === '15year');
-          if (w10) {
-            if (legacy['4inch_10year'] != null) w10.rate4 = Number(legacy['4inch_10year']) || w10.rate4;
-            if (legacy['6inch_10year'] != null) w10.rate6 = Number(legacy['6inch_10year']) || w10.rate6;
-          }
-          if (w15) {
-            if (legacy['4inch_15year'] != null) w15.rate4 = Number(legacy['4inch_15year']) || w15.rate4;
-            if (legacy['6inch_15year'] != null) w15.rate6 = Number(legacy['6inch_15year']) || w15.rate6;
-          }
-        }
-      }
-    }
-
-    return {
-      ...DEFAULT_SETTINGS,
-      ...parsed,
-      rates: {
-        ...DEFAULT_SETTINGS.rates,
-        ...(parsed.rates || {}),
-        reupholstery: {
-          ...DEFAULT_SETTINGS.rates.reupholstery,
-          ...(parsed.rates?.reupholstery || {}),
-        },
-        mattress: {
-          ...DEFAULT_SETTINGS.rates.mattress,
-          ...(parsed.rates?.mattress || {}),
-        },
-        mattressCompanies: companies,
-        curtains: mergeCurtainRates(parsed.rates?.curtains),
-      },
-    };
+    return normalizeSettings(parsed);
   } catch (e) {
     console.error('Failed to load settings:', e);
     return structuredClone(DEFAULT_SETTINGS);

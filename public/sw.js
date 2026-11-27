@@ -1,9 +1,12 @@
-const CACHE_NAME = 'sofa-craft-v1';
+const CACHE_NAME = 'sofa-craft-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/manifest.webmanifest', '/icon-192.png']))
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(['/manifest.webmanifest', '/icon-192.png']))
+      .catch(() => undefined)
   );
 });
 
@@ -25,12 +28,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // Network-first strategy so deployed updates always show immediately
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.origin !== self.location.origin) return;
+
+  // Network-first strategy for same-origin assets with safe offline fallback
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    fetch(event.request).catch(() =>
+      caches.match(event.request).then((cached) => cached || Response.error())
+    )
   );
 });
