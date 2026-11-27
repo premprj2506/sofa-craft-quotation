@@ -10,8 +10,8 @@ export default function CustomerForm({
   return (
     <div className="form-card">
       <div className="form-section-title">ગ્રાહક ની વિગતો (Customer Details)</div>
-      <div className="form-row three">
-        <div className="form-group">
+      <div className="form-row three customer-grid" style={{ marginBottom: 0 }}>
+        <div className="form-group customer-name-col">
           <label>ગ્રાહકનું નામ (Customer Name)</label>
           <CustomerNameField
             value={customerName}

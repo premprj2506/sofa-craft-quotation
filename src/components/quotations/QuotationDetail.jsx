@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { fmt, num } from '../../utils/formatters';
 import { ORDER_STATUSES, getStatusMeta } from '../../constants/orderStatus';
+import { formatMattressWarrantyLabel } from '../../utils/settings';
 import { exportSofaPDF } from '../../utils/pdfExport';
 import {
   buildSofaWhatsAppMessage,
@@ -119,6 +120,12 @@ export default function QuotationDetail({
             </div>
             {isMatt && (
               <>
+                {quote.mattressCompanyName && (
+                  <div className="meta-item">
+                    <div className="label">ગાદલાની કંપની</div>
+                    <div className="value">{quote.mattressCompanyName}</div>
+                  </div>
+                )}
                 <div className="meta-item">
                   <div className="label">ગાદલાની જાડાઈ</div>
                   <div className="value">
@@ -128,7 +135,12 @@ export default function QuotationDetail({
                 <div className="meta-item">
                   <div className="label">વોરંટી (Warranty)</div>
                   <div className="value">
-                    {quote.mattressWarranty === '10year' ? '10-Year' : '15-Year'}
+                    {quote.mattressWarrantyLabel ||
+                      formatMattressWarrantyLabel(
+                        quote.mattressWarranty,
+                        quote.mattressCompany,
+                        settings
+                      )}
                   </div>
                 </div>
               </>

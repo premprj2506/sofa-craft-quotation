@@ -1,4 +1,6 @@
 import { fmt, fmtCurtain, num } from './formatters.js';
+import { buildKarigarSheetData } from './karigarSheet.js';
+import { formatMattressWarrantyLabel } from './settings.js';
 
 /**
  * Renders a structured quotation onto high-DPI HTML5 Canvas pages so that
@@ -272,6 +274,12 @@ export function exportSofaPDF(quote, showToast, settings) {
   ];
 
   if (quote.serviceType === 'mattress') {
+    if (quote.mattressCompanyName) {
+      metaRows.push({
+        label: 'ગાદલાની કંપની',
+        value: quote.mattressCompanyName,
+      });
+    }
     metaRows.push(
       {
         label: 'ગાદલાની જાડાઈ',
@@ -279,7 +287,13 @@ export function exportSofaPDF(quote, showToast, settings) {
       },
       {
         label: 'વોરંટી',
-        value: quote.mattressWarranty === '10year' ? '10-Year' : '15-Year',
+        value:
+          quote.mattressWarrantyLabel ||
+          formatMattressWarrantyLabel(
+            quote.mattressWarranty,
+            quote.mattressCompany,
+            settings
+          ),
       }
     );
   }
@@ -417,6 +431,50 @@ export function exportCurtainPDF(quote, showToast, settings) {
     accentHex: '#7a2e3b',
     footerNote: settings?.quoteNote || 'આ કોમ્પ્યુટર દ્વારા જનરેટ કરેલ કોટેશન છે.',
     fileName: `curtain_${custSanitized}_${quote.id || Date.now()}.pdf`,
+    showToast,
+  });
+}
+
+export function exportKarigarPDF(params, showToast) {
+  const sheet = buildKarigarSheetData(params);
+  const metaRows = [
+    { label: 'કામ (Work)', value: sheet.workTitle },
+    { label: 'કુલ માપ (Size)', value: sheet.sizeLine },
+    { label: 'સોફા ભાગ (Parts)', value: sheet.compactParts },
+    { label: 'પ્રકાર (Type)', value: sheet.caseLabel },
+  ];
+
+  const rows = [];
+  sheet.cuttingGroups.forEach((grp) => {
+    rows.push({
+      header: true,
+      label: `${grp.title} — ${grp.totalMeters}`,
+      details: '',
+      amount: '',
+    });
+    grp.rows.forEach((r) => {
+      rows.push({
+        label: r.label,
+        details: r.detail,
+        amount: r.meters,
+      });
+    });
+  });
+
+  renderInvoiceToPDF({
+    title: sheet.shopName,
+    subtitle: 'કારીગર કટિંગ શીટ (Cutting Sheet)',
+    shopPhone: params?.settings?.shopPhone,
+    shopAddress: params?.settings?.shopAddress,
+    metaRows,
+    tableHeaders: ['ભાગ / વિગત (Part)', 'કટિંગ માપ (Cutting Size)', 'કાપડ (Meters)'],
+    rows,
+    totalLines: [],
+    grandTotalLabel: sheet.totalMetersLabel,
+    grandTotalValue: sheet.totalMetersText,
+    accentHex: '#1d7a5f',
+    footerNote: 'કારીગર કટિંગ શીટ · 1 મીટર = 39 ઇંચ (54" પનો)',
+    fileName: `karigar_sheet_${Date.now()}.pdf`,
     showToast,
   });
 }

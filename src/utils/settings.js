@@ -1,6 +1,71 @@
-import { DEFAULTS, MATTRESS_RATES } from '../constants/services.js';
+import {
+  DEFAULTS,
+  MATTRESS_RATES,
+  DEFAULT_MATTRESS_COMPANIES,
+} from '../constants/services.js';
+import { CURTAIN_CONFIG } from '../constants/curtainConfig.js';
 
 const SETTINGS_KEY = 'sofa_app_settings_v1';
+
+function buildDefaultCurtainRates() {
+  const out = {};
+  Object.keys(CURTAIN_CONFIG).forEach((typeKey) => {
+    out[typeKey] = {};
+    CURTAIN_CONFIG[typeKey].fields.forEach((f) => {
+      out[typeKey][f.key] = f.def;
+    });
+  });
+  return out;
+}
+
+function mergeCurtainRates(savedCurtains) {
+  const defaults = buildDefaultCurtainRates();
+  if (!savedCurtains || typeof savedCurtains !== 'object') return defaults;
+  Object.keys(defaults).forEach((typeKey) => {
+    if (savedCurtains[typeKey] && typeof savedCurtains[typeKey] === 'object') {
+      defaults[typeKey] = {
+        ...defaults[typeKey],
+        ...savedCurtains[typeKey],
+      };
+    }
+  });
+  return defaults;
+}
+
+function cloneDefaultCompanies() {
+  return DEFAULT_MATTRESS_COMPANIES.map((c) => ({
+    ...c,
+    warranties: c.warranties.map((w) => ({ ...w })),
+  }));
+}
+
+function normalizeMattressCompanies(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return cloneDefaultCompanies();
+  }
+  const normalized = list
+    .filter((c) => c && typeof c === 'object')
+    .map((c, cIdx) => {
+      const warranties =
+        Array.isArray(c.warranties) && c.warranties.length > 0
+          ? c.warranties.map((w, wIdx) => ({
+              id: String(w?.id || `war_${cIdx}_${wIdx}`),
+              label: String(w?.label ?? `${10 + wIdx * 5} વર્ષ`),
+              rate4: Math.max(0, Number(w?.rate4) || 0),
+              rate6: Math.max(0, Number(w?.rate6) || 0),
+            }))
+          : [
+              { id: '10year', label: '10 વર્ષ (10-Year)', rate4: 240, rate6: 310 },
+              { id: '15year', label: '15 વર્ષ (15-Year)', rate4: 290, rate6: 360 },
+            ];
+      return {
+        id: String(c.id || `comp_${cIdx}`),
+        name: String(c.name ?? `કંપની ${cIdx + 1}`),
+        warranties,
+      };
+    });
+  return normalized.length > 0 ? normalized : cloneDefaultCompanies();
+}
 
 export const DEFAULT_SETTINGS = {
   shopName: 'Sofa Craft',
@@ -32,6 +97,8 @@ export const DEFAULT_SETTINGS = {
       '6inch_10year': MATTRESS_RATES['6inch']['10year'],
       '6inch_15year': MATTRESS_RATES['6inch']['15year'],
     },
+    mattressCompanies: cloneDefaultCompanies(),
+    curtains: buildDefaultCurtainRates(),
   },
 };
 
@@ -40,6 +107,34 @@ export function loadSettings() {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const parsed = JSON.parse(raw);
+
+    let companies;
+    if (
+      Array.isArray(parsed.rates?.mattressCompanies) &&
+      parsed.rates.mattressCompanies.length > 0
+    ) {
+      companies = normalizeMattressCompanies(parsed.rates.mattressCompanies);
+    } else {
+      companies = cloneDefaultCompanies();
+      // Preserve any legacy customized mattress rates on Kurlon if user edited them before companies existed
+      if (parsed.rates?.mattress) {
+        const legacy = parsed.rates.mattress;
+        const kurlon = companies.find((c) => c.id === 'kurlon');
+        if (kurlon) {
+          const w10 = kurlon.warranties.find((w) => w.id === '10year');
+          const w15 = kurlon.warranties.find((w) => w.id === '15year');
+          if (w10) {
+            if (legacy['4inch_10year'] != null) w10.rate4 = Number(legacy['4inch_10year']) || w10.rate4;
+            if (legacy['6inch_10year'] != null) w10.rate6 = Number(legacy['6inch_10year']) || w10.rate6;
+          }
+          if (w15) {
+            if (legacy['4inch_15year'] != null) w15.rate4 = Number(legacy['4inch_15year']) || w15.rate4;
+            if (legacy['6inch_15year'] != null) w15.rate6 = Number(legacy['6inch_15year']) || w15.rate6;
+          }
+        }
+      }
+    }
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
@@ -54,6 +149,8 @@ export function loadSettings() {
           ...DEFAULT_SETTINGS.rates.mattress,
           ...(parsed.rates?.mattress || {}),
         },
+        mattressCompanies: companies,
+        curtains: mergeCurtainRates(parsed.rates?.curtains),
       },
     };
   } catch (e) {
@@ -105,12 +202,68 @@ export function getServiceDefaultsFromSettings(serviceId, settings, coverType = 
   return {};
 }
 
-export function getMattressRateFromSettings(thickness, warranty, settings) {
+export function getMattressCompanies(settings) {
   const s = settings || DEFAULT_SETTINGS;
+  return normalizeMattressCompanies(s.rates?.mattressCompanies);
+}
+
+export function getMattressCompany(companyIdOrName, settings) {
+  const companies = getMattressCompanies(settings);
+  if (!companyIdOrName) return companies[0];
+  const target = String(companyIdOrName).trim().toLowerCase();
+  return (
+    companies.find(
+      (c) => c.id.toLowerCase() === target || c.name.trim().toLowerCase() === target
+    ) || companies[0]
+  );
+}
+
+export function getMattressWarrantyObj(companyIdOrName, warrantyIdOrLabel, settings) {
+  const company = getMattressCompany(companyIdOrName, settings);
+  if (!warrantyIdOrLabel) return company.warranties[0];
+  const target = String(warrantyIdOrLabel).trim().toLowerCase();
+  return (
+    company.warranties.find(
+      (w) => w.id.toLowerCase() === target || w.label.trim().toLowerCase() === target
+    ) || company.warranties[0]
+  );
+}
+
+export function getMattressRateFromSettings(
+  thickness,
+  warranty,
+  settings,
+  companyId
+) {
+  const s = settings || DEFAULT_SETTINGS;
+  const companies = getMattressCompanies(s);
+  if (companies.length > 0) {
+    const comp = companyId ? getMattressCompany(companyId, s) : companies[0];
+    const warObj = comp.warranties.find(
+      (w) => w.id === warranty || w.label === warranty
+    );
+    if (warObj) {
+      return thickness === '4inch' ? warObj.rate4 : warObj.rate6;
+    }
+  }
   const key = `${thickness}_${warranty}`;
   return (
     s.rates?.mattress?.[key] ??
     MATTRESS_RATES[thickness]?.[warranty] ??
     240
   );
+}
+
+export function formatMattressWarrantyLabel(warrantyIdOrLabel, companyId, settings) {
+  if (!warrantyIdOrLabel) return '—';
+  if (companyId) {
+    const comp = getMattressCompany(companyId, settings);
+    const match = comp.warranties.find(
+      (w) => w.id === warrantyIdOrLabel || w.label === warrantyIdOrLabel
+    );
+    if (match) return match.label;
+  }
+  if (warrantyIdOrLabel === '10year') return '10-Year';
+  if (warrantyIdOrLabel === '15year') return '15-Year';
+  return String(warrantyIdOrLabel);
 }

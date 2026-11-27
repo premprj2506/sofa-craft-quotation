@@ -1,4 +1,9 @@
-import { getMattressRateFromSettings } from '../../utils/settings';
+import {
+  getMattressCompanies,
+  getMattressCompany,
+  getMattressWarrantyObj,
+  getMattressRateFromSettings,
+} from '../../utils/settings';
 import { num, fmt, fmtRaw, roundToCustomFeet } from '../../utils/formatters';
 import {
   MattressIcon,
@@ -11,6 +16,8 @@ import {
 export default function MattressWizard({
   mattressStep,
   setMattressStep,
+  mattressCompany,
+  setMattressCompany,
   mattressThickness,
   setMattressThickness,
   mattressWarranty,
@@ -21,15 +28,27 @@ export default function MattressWizard({
   settings,
 }) {
   const fd = formData || {};
+  const companies = getMattressCompanies(settings);
+  const selectedCompany = getMattressCompany(mattressCompany, settings);
+
+  const handleSelectCompany = (compId) => {
+    if (setMattressCompany) setMattressCompany(compId);
+    setMattressWarranty(null);
+  };
 
   const handleSelectThickness = (thk) => {
     setMattressThickness(thk);
     setMattressWarranty(null);
   };
 
-  const handleSelectWarranty = (war) => {
-    setMattressWarranty(war);
-    const rate = getMattressRateFromSettings(mattressThickness, war, settings);
+  const handleSelectWarranty = (warId) => {
+    setMattressWarranty(warId);
+    const rate = getMattressRateFromSettings(
+      mattressThickness,
+      warId,
+      settings,
+      selectedCompany.id
+    );
     onChangeField('rate', rate);
   };
 
@@ -49,13 +68,40 @@ export default function MattressWizard({
     </div>
   );
 
-  // Step 1: Thickness
+  // Step 1: Company + Thickness
   if (mattressStep === 1) {
     return (
       <>
         {renderStepIndicator()}
         <div className="form-card">
-          <div className="form-section-title">Step 1 — Select Thickness (જાડાઈ પસંદ કરો)</div>
+          <div className="form-section-title">Step 1 — કંપની અને જાડાઈ પસંદ કરો</div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                color: 'var(--text2)',
+                marginBottom: '8px',
+              }}
+            >
+              ગાદલાની કંપની પસંદ કરો (Company):
+            </label>
+            <div className="tab-group" style={{ marginBottom: 0 }}>
+              {companies.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  className={`tab purple ${selectedCompany.id === comp.id ? 'active' : ''}`}
+                  onClick={() => handleSelectCompany(comp.id)}
+                >
+                  {comp.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="step-selector">
             <div
               className={`step-option ${mattressThickness === '4inch' ? 'selected' : ''}`}
@@ -121,29 +167,28 @@ export default function MattressWizard({
   // Step 2: Warranty
   if (mattressStep === 2) {
     const thkLabel = mattressThickness === '4inch' ? '4 Inch' : '6 Inch';
-    const rate10 = getMattressRateFromSettings(mattressThickness, '10year', settings);
-    const rate15 = getMattressRateFromSettings(mattressThickness, '15year', settings);
 
     return (
       <>
         {renderStepIndicator()}
         <div className="form-card">
-          <div className="form-section-title">Step 2 — Warranty ({thkLabel})</div>
+          <div className="form-section-title">
+            Step 2 — વોરંટી પસંદ કરો ({selectedCompany.name} · {thkLabel})
+          </div>
           <div className="step-pills">
-            <button
-              type="button"
-              className={`step-pill ${mattressWarranty === '10year' ? 'selected' : ''}`}
-              onClick={() => handleSelectWarranty('10year')}
-            >
-              10-Year (વર્ષ) · ₹{rate10}/ft
-            </button>
-            <button
-              type="button"
-              className={`step-pill ${mattressWarranty === '15year' ? 'selected' : ''}`}
-              onClick={() => handleSelectWarranty('15year')}
-            >
-              15-Year (વર્ષ) · ₹{rate15}/ft
-            </button>
+            {selectedCompany.warranties.map((w) => {
+              const wRate = mattressThickness === '4inch' ? w.rate4 : w.rate6;
+              return (
+                <button
+                  key={w.id}
+                  type="button"
+                  className={`step-pill ${mattressWarranty === w.id ? 'selected' : ''}`}
+                  onClick={() => handleSelectWarranty(w.id)}
+                >
+                  {w.label} · ₹{wRate}/ft
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -173,11 +218,17 @@ export default function MattressWizard({
 
   // Step 3: Dimensions & Calculation
   const thkLabel = mattressThickness === '4inch' ? '4 Inch' : '6 Inch';
-  const warLabel = mattressWarranty === '10year' ? '10-Year' : '15-Year';
+  const warObj = getMattressWarrantyObj(
+    selectedCompany.id,
+    mattressWarranty,
+    settings
+  );
+  const warLabel = warObj?.label || '10-Year';
   const defaultRate = getMattressRateFromSettings(
     mattressThickness,
     mattressWarranty,
-    settings
+    settings,
+    selectedCompany.id
   );
   const currentRate = fd.rate !== undefined && fd.rate !== '' ? fd.rate : defaultRate;
 
@@ -194,7 +245,8 @@ export default function MattressWizard({
       <div className="form-card">
         <div className="form-section-title">Step 3 — Dimensions & Calculation (ગણતરી)</div>
         <div className="info-box purple">
-          <strong>{thkLabel} Mattress</strong> · <strong>{warLabel} Warranty</strong> · Default Rate: ₹{defaultRate}/ft
+          <strong>{selectedCompany.name}</strong> · <strong>{thkLabel}</strong> ·{' '}
+          <strong>{warLabel}</strong> · Default Rate: ₹{defaultRate}/ft
         </div>
 
         <div className="form-row">

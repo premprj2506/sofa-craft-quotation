@@ -3,6 +3,7 @@ import Header from './components/common/Header';
 import MobileNav from './components/common/MobileNav';
 import Toast from './components/common/Toast';
 import CustomerForm from './components/common/CustomerForm';
+import MobileStickyBar from './components/common/MobileStickyBar';
 import SettingsPage from './components/common/SettingsPage';
 import {
   ServiceIcon,
@@ -44,6 +45,9 @@ import {
   loadSettings,
   saveSettings,
   getServiceDefaultsFromSettings,
+  getMattressCompanies,
+  getMattressCompany,
+  getMattressWarrantyObj,
 } from './utils/settings';
 
 export default function App() {
@@ -71,6 +75,7 @@ export default function App() {
 
   // Mattress wizard state
   const [mattressStep, setMattressStep] = useState(1);
+  const [mattressCompany, setMattressCompany] = useState(null);
   const [mattressThickness, setMattressThickness] = useState(null);
   const [mattressWarranty, setMattressWarranty] = useState(null);
 
@@ -117,6 +122,7 @@ export default function App() {
     setDiscount(0);
     setAdvance(0);
     setStatus('pending');
+    setMattressCompany(null);
     setMattressThickness(null);
     setMattressWarranty(null);
     setMattressStep(1);
@@ -158,6 +164,9 @@ export default function App() {
 
     setSelectedService(id);
     setMattressStep(1);
+    setMattressCompany(
+      id === 'mattress' ? getMattressCompanies(settings)[0]?.id || null : null
+    );
     setMattressThickness(null);
     setMattressWarranty(null);
 
@@ -225,6 +234,23 @@ export default function App() {
     discount,
   });
 
+  const resolveMattressMeta = () => {
+    if (selectedService !== 'mattress') {
+      return {
+        mattressCompany: null,
+        mattressCompanyName: '',
+        mattressWarrantyLabel: '',
+      };
+    }
+    const comp = getMattressCompany(mattressCompany, settings);
+    const war = getMattressWarrantyObj(comp.id, mattressWarranty, settings);
+    return {
+      mattressCompany: comp.id,
+      mattressCompanyName: comp.name,
+      mattressWarrantyLabel: war?.label || mattressWarranty || '',
+    };
+  };
+
   // Add current active service to cartItems & go to home to pick another service
   const handleAddAnotherService = () => {
     const itemBreakdown = calcBreakdown({
@@ -233,25 +259,34 @@ export default function App() {
       coverType,
       bedType,
     });
+    const mattMeta = resolveMattressMeta();
+    const itemLabel =
+      selectedService === 'mattress' && mattMeta.mattressCompanyName
+        ? `ગાદલા (${mattMeta.mattressCompanyName} · ${mattMeta.mattressWarrantyLabel})`
+        : activeServiceObj?.label || selectedService;
     const newItem = {
       id: generateId(),
       serviceType: selectedService,
-      serviceLabel: activeServiceObj?.label || selectedService,
+      serviceLabel: itemLabel,
       formData: { ...formData },
       coverType,
       bedType,
+      mattressCompany: mattMeta.mattressCompany,
+      mattressCompanyName: mattMeta.mattressCompanyName,
       mattressThickness,
       mattressWarranty,
+      mattressWarrantyLabel: mattMeta.mattressWarrantyLabel,
       breakdown: itemBreakdown,
       subtotal: activeSubtotal,
     };
     setCartItems((prev) => [...prev, newItem]);
     setSelectedService(null);
     setFormData({});
+    setMattressCompany(null);
     setMattressThickness(null);
     setMattressWarranty(null);
     setMattressStep(1);
-    showToast(`${activeServiceObj?.label} કોટેશનમાં ઉમેરાયું! હવે બીજી સેવા પસંદ કરો.`);
+    showToast(`${itemLabel} કોટેશનમાં ઉમેરાયું! હવે બીજી સેવા પસંદ કરો.`);
     setPage('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -319,6 +354,7 @@ export default function App() {
   const handleSaveQuotation = () => {
     const { serviceType, serviceLabel } = getCombinedServiceMeta();
     const combinedBreakdown = getCombinedBreakdown();
+    const mattMeta = resolveMattressMeta();
 
     const quoteId = editingQuoteId || generateId();
     const quotePayload = {
@@ -331,8 +367,11 @@ export default function App() {
       formData: { ...formData },
       coverType,
       bedType,
+      mattressCompany: mattMeta.mattressCompany,
+      mattressCompanyName: mattMeta.mattressCompanyName,
       mattressThickness,
       mattressWarranty,
+      mattressWarrantyLabel: mattMeta.mattressWarrantyLabel,
       cartItems:
         cartItems.length > 0
           ? [
@@ -342,12 +381,18 @@ export default function App() {
                     {
                       id: generateId(),
                       serviceType: selectedService,
-                      serviceLabel: activeServiceObj?.label || selectedService,
+                      serviceLabel:
+                        selectedService === 'mattress' && mattMeta.mattressCompanyName
+                          ? `ગાદલા (${mattMeta.mattressCompanyName} · ${mattMeta.mattressWarrantyLabel})`
+                          : activeServiceObj?.label || selectedService,
                       formData: { ...formData },
                       coverType,
                       bedType,
+                      mattressCompany: mattMeta.mattressCompany,
+                      mattressCompanyName: mattMeta.mattressCompanyName,
                       mattressThickness,
                       mattressWarranty,
+                      mattressWarrantyLabel: mattMeta.mattressWarrantyLabel,
                       breakdown: calcBreakdown({
                         selectedService,
                         formData,
@@ -406,6 +451,9 @@ export default function App() {
         setFormData({ ...(lastSofa.formData || {}) });
         setCoverType(lastSofa.coverType || 'simple');
         setBedType(lastSofa.bedType || 'bed');
+        setMattressCompany(
+          lastSofa.mattressCompany || getMattressCompanies(settings)[0]?.id || null
+        );
         setMattressThickness(lastSofa.mattressThickness || null);
         setMattressWarranty(lastSofa.mattressWarranty || null);
         setMattressStep(lastSofa.serviceType === 'mattress' ? 3 : 1);
@@ -421,6 +469,9 @@ export default function App() {
       setFormData({ ...(quote.formData || {}) });
       setCoverType(quote.coverType || 'simple');
       setBedType(quote.bedType || 'bed');
+      setMattressCompany(
+        quote.mattressCompany || getMattressCompanies(settings)[0]?.id || null
+      );
       setMattressThickness(quote.mattressThickness || null);
       setMattressWarranty(quote.mattressWarranty || null);
       setMattressStep(quote.serviceType === 'mattress' ? 3 : 1);
@@ -611,6 +662,10 @@ export default function App() {
     selectedService !== 'mattress' || mattressStep === 3;
 
   const combinedMeta = getCombinedServiceMeta();
+  const hasStickyMobileBar =
+    (page === 'form' && showStickySidebar) ||
+    page === 'curtains' ||
+    page === 'material';
 
   return (
     <div className="app">
@@ -621,7 +676,7 @@ export default function App() {
         shopName={settings.shopName || 'સોફા એસ્ટિમેટ'}
       />
 
-      <main className="main">
+      <main className={`main ${hasStickyMobileBar ? 'has-mobile-sticky-bar' : ''}`}>
         {/* Home Screen */}
         {page === 'home' && (
           <>
@@ -735,6 +790,8 @@ export default function App() {
               <MattressWizard
                 mattressStep={mattressStep}
                 setMattressStep={setMattressStep}
+                mattressCompany={mattressCompany}
+                setMattressCompany={setMattressCompany}
                 mattressThickness={mattressThickness}
                 setMattressThickness={setMattressThickness}
                 mattressWarranty={mattressWarranty}
@@ -751,6 +808,8 @@ export default function App() {
                     <MattressWizard
                       mattressStep={mattressStep}
                       setMattressStep={setMattressStep}
+                      mattressCompany={mattressCompany}
+                      setMattressCompany={setMattressCompany}
                       mattressThickness={mattressThickness}
                       setMattressThickness={setMattressThickness}
                       mattressWarranty={mattressWarranty}
@@ -815,7 +874,7 @@ export default function App() {
                 </div>
 
                 {/* Sticky Live Totals & Multi-Service Cart */}
-                <aside className="workspace-side">
+                <aside id="sofa-summary-side" className="workspace-side">
                   <div className="sticky-panel">
                     {cartItems.length > 0 && (
                       <div className="form-card cart-summary-card">
@@ -881,34 +940,57 @@ export default function App() {
                 </aside>
               </div>
             )}
+            {showStickySidebar && (
+              <MobileStickyBar
+                label="કુલ રકમ"
+                value={`₹ ${fmt(liveTotals.grand)}`}
+                subText={
+                  Number(advance) > 0
+                    ? `બાકી: ₹ ${fmt(Math.max(0, liveTotals.grand - Number(advance)))}`
+                    : cartItems.length > 0
+                    ? `${cartItems.length + 1} સેવાઓ`
+                    : undefined
+                }
+                actionLabel="Preview →"
+                onAction={() => setPage('summary')}
+                targetSideId="sofa-summary-side"
+                variant="accent"
+              />
+            )}
           </div>
         )}
 
         {/* Summary / Preview Screen */}
-        {page === 'summary' && (
-          <QuotationPreview
-            customerName={customerName}
-            customerPhone={customerPhone}
-            quotationDate={quotationDate}
-            service={activeServiceObj}
-            serviceLabel={combinedMeta.serviceLabel}
-            mattressThickness={mattressThickness}
-            mattressWarranty={mattressWarranty}
-            breakdown={getCombinedBreakdown()}
-            totals={liveTotals}
-            commission={commission}
-            gst={gst}
-            discount={discount}
-            advance={advance}
-            status={status}
-            isEditing={Boolean(editingQuoteId)}
-            settings={settings}
-            onSave={handleSaveQuotation}
-            onEdit={() => setPage(selectedService ? 'form' : 'home')}
-            onPrint={() => window.print()}
-            showToast={showToast}
-          />
-        )}
+        {page === 'summary' && (() => {
+          const mattMeta = resolveMattressMeta();
+          return (
+            <QuotationPreview
+              customerName={customerName}
+              customerPhone={customerPhone}
+              quotationDate={quotationDate}
+              service={activeServiceObj}
+              serviceLabel={combinedMeta.serviceLabel}
+              mattressCompany={mattMeta.mattressCompany}
+              mattressCompanyName={mattMeta.mattressCompanyName}
+              mattressThickness={mattressThickness}
+              mattressWarranty={mattressWarranty}
+              mattressWarrantyLabel={mattMeta.mattressWarrantyLabel}
+              breakdown={getCombinedBreakdown()}
+              totals={liveTotals}
+              commission={commission}
+              gst={gst}
+              discount={discount}
+              advance={advance}
+              status={status}
+              isEditing={Boolean(editingQuoteId)}
+              settings={settings}
+              onSave={handleSaveQuotation}
+              onEdit={() => setPage(selectedService ? 'form' : 'home')}
+              onPrint={() => window.print()}
+              showToast={showToast}
+            />
+          );
+        })()}
 
         {/* Unified All Quotations Hub */}
         {page === 'quotes' && (

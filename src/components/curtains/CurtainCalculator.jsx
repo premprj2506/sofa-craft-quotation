@@ -11,9 +11,11 @@ import {
   buildCurtainWhatsAppMessage,
   shareOnWhatsApp,
 } from '../../utils/whatsappShare';
-import { ORDER_STATUSES } from '../../constants/orderStatus';
+import { ORDER_STATUSES, getStatusMeta } from '../../constants/orderStatus';
 import CurtainList from './CurtainList';
 import CustomerNameField from '../common/CustomerNameField';
+import CollapsibleCard from '../common/CollapsibleCard';
+import MobileStickyBar from '../common/MobileStickyBar';
 import {
   ArrowLeftIcon,
   CurtainIcon,
@@ -26,12 +28,16 @@ import {
   CartPlusIcon,
 } from '../common/Icons';
 
-function buildInitialDynamicMap(initialQuote) {
+function buildInitialDynamicMap(initialQuote, settings) {
   const init = {};
+  const curtainDefaults = settings?.rates?.curtains || {};
   Object.keys(CURTAIN_CONFIG).forEach((k) => {
     init[k] = {};
     CURTAIN_CONFIG[k].fields.forEach((f) => {
-      init[k][f.key] = f.def;
+      init[k][f.key] =
+        curtainDefaults[k]?.[f.key] !== undefined
+          ? curtainDefaults[k][f.key]
+          : f.def;
     });
   });
   if (initialQuote?.dynamicValues && initialQuote?.type) {
@@ -96,7 +102,7 @@ export default function CurtainCalculator({
   });
 
   const [dynamicValues, setDynamicValues] = useState(() => {
-    const base = buildInitialDynamicMap(initialQuote);
+    const base = buildInitialDynamicMap(initialQuote, settings);
     if (initialLastWin?.dynamicValues && initialLastWin?.type) {
       base[initialLastWin.type] = {
         ...base[initialLastWin.type],
@@ -407,8 +413,8 @@ export default function CurtainCalculator({
         <div className="workspace-main">
           <div className="form-card">
             <div className="form-section-title">ગ્રાહક ની વિગત</div>
-            <div className="form-row three" style={{ marginBottom: 0 }}>
-              <div className="form-group">
+            <div className="form-row three customer-grid" style={{ marginBottom: 0 }}>
+              <div className="form-group customer-name-col">
                 <label>ગ્રાહકનું નામ</label>
                 <CustomerNameField
                   value={customer.name}
@@ -480,7 +486,7 @@ export default function CurtainCalculator({
 
           <div className="form-card">
             <div className="form-section-title">માપ અને પ્લીટિંગ ({roomName || 'બારી'})</div>
-            <div className="form-row three" style={{ marginBottom: 0 }}>
+            <div className="form-row three compact-three" style={{ marginBottom: 0 }}>
               <div className="form-group">
                 <label>ઊંચાઈ - Height (ઇંચ)</label>
                 <input
@@ -551,9 +557,21 @@ export default function CurtainCalculator({
             </div>
           </div>
 
-          <div className="form-card no-print">
-            <div className="form-section-title">કમિશન, જીએસટી, બાનું અને સ્ટેટસ</div>
-            <div className="form-row three">
+          <CollapsibleCard
+            title="કમિશન · જીએસટી · બાનું · સ્ટેટસ"
+            summary={[
+              getStatusMeta(adjustments.status).label,
+              num(adjustments.gst) > 0 ? `GST ${adjustments.gst}%` : null,
+              num(adjustments.advance) > 0
+                ? `બાનું ₹${num(adjustments.advance).toLocaleString('en-IN')}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            defaultOpenMobile={false}
+            className="no-print"
+          >
+            <div className="form-row three compact-three">
               <div className="form-group">
                 <label>કમિશન (%)</label>
                 <input
@@ -599,7 +617,7 @@ export default function CurtainCalculator({
               </div>
             </div>
 
-            <div className="form-row" style={{ marginBottom: 0, alignItems: 'end' }}>
+            <div className="form-row mobile-stack" style={{ marginBottom: 0, alignItems: 'end' }}>
               <div className="form-group">
                 <label>એડવાન્સ / બાનું (₹)</label>
                 <input
@@ -622,7 +640,7 @@ export default function CurtainCalculator({
                       key={st.id}
                       type="button"
                       className={`tab maroon ${adjustments.status === st.id ? 'active' : ''}`}
-                      style={{ padding: '8px 12px', fontSize: '12px' }}
+                      style={{ padding: '7px 10px', fontSize: '12px' }}
                       onClick={() =>
                         setAdjustments((prev) => ({ ...prev, status: st.id }))
                       }
@@ -633,11 +651,11 @@ export default function CurtainCalculator({
                 </div>
               </div>
             </div>
-          </div>
+          </CollapsibleCard>
         </div>
 
         {/* Right Column: Sticky Live Summary + Multi-Window List */}
-        <aside className="workspace-side">
+        <aside id="curtain-summary-side" className="workspace-side">
           <div className="sticky-panel">
             {addedWindows.length > 0 && (
               <div className="form-card cart-summary-card">
@@ -786,6 +804,22 @@ export default function CurtainCalculator({
           </div>
         </aside>
       </div>
+
+      <MobileStickyBar
+        label="કુલ રકમ"
+        value={fmtCurtain(grandTotal)}
+        subText={
+          num(adjustments.advance) > 0
+            ? `બાકી: ${fmtCurtain(Math.max(0, grandTotal - num(adjustments.advance)))}`
+            : addedWindows.length > 0
+            ? `${addedWindows.length + (includeActiveInTotal ? 1 : 0)} બારી`
+            : undefined
+        }
+        actionLabel={isEditing ? 'અપડેટ કરો' : 'સેવ કરો ✓'}
+        onAction={handleSaveQuotation}
+        targetSideId="curtain-summary-side"
+        variant="maroon"
+      />
     </div>
   );
 }

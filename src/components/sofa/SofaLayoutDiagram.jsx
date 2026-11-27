@@ -1,4 +1,5 @@
 import { num } from '../../utils/formatters';
+import CollapsibleCard from '../common/CollapsibleCard';
 
 export default function SofaLayoutDiagram({
   mode,
@@ -18,10 +19,12 @@ export default function SofaLayoutDiagram({
     mode === 'total' && shape === 'c_shape' && sections.length === 3;
 
   return (
-    <div className="form-card diagram-card">
-      <div className="form-section-title">
-        સોફાની ગોઠવણીનો નકશો (Layout Diagram)
-      </div>
+    <CollapsibleCard
+      title="સોફાની ગોઠવણીનો નકશો (Diagram)"
+      summary={`${sections.length} ભાગ · ${handleCount} હેન્ડલ`}
+      defaultOpenMobile={false}
+      className="diagram-card"
+    >
 
       {isPresetSingleStraight && (
         <div className="diagram-wrap">
@@ -253,6 +256,6 @@ export default function SofaLayoutDiagram({
             </div>
           </div>
         )}
-    </div>
+    </CollapsibleCard>
   );
 }

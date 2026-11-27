@@ -12,7 +12,9 @@ import {
   buildKarigarWhatsAppMessage,
   shareOnWhatsApp,
 } from '../../utils/whatsappShare';
+import { exportKarigarPDF } from '../../utils/pdfExport';
 import SofaLayoutDiagram from './SofaLayoutDiagram';
+import MobileStickyBar from '../common/MobileStickyBar';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -192,21 +194,27 @@ export default function MaterialCalculator({
   const { tekoPacked } = kapad;
   const hasLounger = sections.some((s) => s.type === 'lounger');
 
+  const tekoModeLabel =
+    TEKO_MODES.find((t) => t.id === tekoMode)?.label || '';
+
+  const buildKarigarParams = () => ({
+    purpose,
+    sections,
+    handleCount: num(handleCount),
+    totalSofaFeet,
+    kapad,
+    coverKapad,
+    tekoModeLabel,
+    settings,
+  });
+
   const handleKarigarWhatsApp = () => {
-    const message = buildKarigarWhatsAppMessage({
-      purpose,
-      sections,
-      handleCount: num(handleCount),
-      totalSofaFeet,
-      kapad,
-      coverKapad,
-      settings,
-    });
+    const message = buildKarigarWhatsAppMessage(buildKarigarParams());
     shareOnWhatsApp({ phone: '', message, showToast });
   };
 
-  const handleKarigarPrint = () => {
-    window.print();
+  const handleKarigarPDF = () => {
+    exportKarigarPDF(buildKarigarParams(), showToast);
   };
 
   return (
@@ -266,7 +274,7 @@ export default function MaterialCalculator({
         <div className="workspace-main">
           <div className="form-card no-print">
             <div className="form-section-title">માપ દાખલ કરવાની રીત પસંદ કરો</div>
-            <div className="tab-group" style={{ marginBottom: '12px' }}>
+            <div className="tab-group" style={{ marginBottom: 0 }}>
               <button
                 type="button"
                 className={`tab ${mode === 'total' ? 'active' : ''}`}
@@ -280,45 +288,6 @@ export default function MaterialCalculator({
                 onClick={() => setMode('manual')}
               >
                 મેન્યુઅલ માપ (એક-એક સોફા)
-              </button>
-            </div>
-
-            <div className="quick-examples-row">
-              <span className="quick-ex-label">ઝડપી ઉદાહરણ:</span>
-              <button
-                type="button"
-                className="btn-chip"
-                onClick={() => applyQuickExample(10, 'single_straight')}
-              >
-                10' સિંગલ
-              </button>
-              <button
-                type="button"
-                className="btn-chip"
-                onClick={() => applyQuickExample(16, 'straight')}
-              >
-                16' સીધા
-              </button>
-              <button
-                type="button"
-                className="btn-chip"
-                onClick={() => applyQuickExample(16, 'l_shape')}
-              >
-                16' L-આકાર
-              </button>
-              <button
-                type="button"
-                className="btn-chip"
-                onClick={() => applyQuickExample(16, 'l_lounger')}
-              >
-                16' લોન્જર
-              </button>
-              <button
-                type="button"
-                className="btn-chip"
-                onClick={() => applyQuickExample(23, 'c_shape')}
-              >
-                23' C-આકાર
               </button>
             </div>
           </div>
@@ -650,7 +619,7 @@ export default function MaterialCalculator({
         </div>
 
         {/* Right Column: Sticky Summary */}
-        <aside className="workspace-side">
+        <aside id="material-summary-side" className="workspace-side">
           <div className="sticky-panel">
             {purpose === 'full_sofa' ? (
               <div className="totals-card">
@@ -773,10 +742,10 @@ export default function MaterialCalculator({
                     <button
                       type="button"
                       className="btn btn-outline"
-                      onClick={handleKarigarPrint}
+                      onClick={handleKarigarPDF}
                     >
                       <PrintIcon size={16} />
-                      <span>શીટ પ્રિન્ટ</span>
+                      <span>શીટ PDF</span>
                     </button>
                   </div>
                   <button
@@ -942,10 +911,10 @@ export default function MaterialCalculator({
                     <button
                       type="button"
                       className="btn btn-outline"
-                      onClick={handleKarigarPrint}
+                      onClick={handleKarigarPDF}
                     >
                       <PrintIcon size={16} />
-                      <span>શીટ પ્રિન્ટ</span>
+                      <span>શીટ PDF</span>
                     </button>
                   </div>
                   <button
@@ -967,6 +936,25 @@ export default function MaterialCalculator({
           </div>
         </aside>
       </div>
+
+      <MobileStickyBar
+        label={purpose === 'sofa_cover' ? 'કુલ કવર કાપડ' : 'કુલ કાપડ'}
+        value={`${(purpose === 'sofa_cover'
+          ? coverKapad.totalMeters
+          : kapad.totalMeters
+        ).toFixed(2)} મીટર`}
+        subText={`${totalSofaFeet} ફૂટ · ${num(handleCount)} હેન્ડલ`}
+        actionLabel={
+          purpose === 'sofa_cover' ? 'કવર કોટેશન →' : 'સોફા કોટેશન →'
+        }
+        onAction={() =>
+          purpose === 'sofa_cover'
+            ? onTransferToQuote('cover', coverKapad.totalMeters, coverSubType)
+            : onTransferToQuote('reupholstery', kapad.totalMeters)
+        }
+        targetSideId="material-summary-side"
+        variant="teal"
+      />
     </div>
   );
 }

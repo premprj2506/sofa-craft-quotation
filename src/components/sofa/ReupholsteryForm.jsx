@@ -12,26 +12,11 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
     <div className="form-card">
       <div className="form-section-title">Materials & Costs (સામગ્રી અને ખર્ચ)</div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr 1.2fr',
-          gap: '10px',
-          marginBottom: '10px',
-        }}
-      >
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-          Item
-        </div>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-          Rate (₹)
-        </div>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-          Qty / Unit
-        </div>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em', textAlign: 'right' }}>
-          Amount
-        </div>
+      <div className="reup-col-headers">
+        <div>Item (સામગ્રી)</div>
+        <div>Rate (₹)</div>
+        <div>Qty / માપ</div>
+        <div style={{ textAlign: 'right' }}>Amount</div>
       </div>
 
       {REUPHOLSTERY_ITEMS.map((item) => {
@@ -42,13 +27,13 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
         return (
           <div key={item.key} className="item-row">
             <div className="item-label">
-              {item.label}
-              <br />
+              {item.label}{' '}
               <small style={{ color: 'var(--text3)', fontSize: '11px' }}>
-                per {item.unit}
+                / {item.unit}
               </small>
             </div>
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group item-rate" style={{ margin: 0 }}>
+              <span className="mobile-field-tag">દર (₹/{item.unit})</span>
               <input
                 type="number"
                 min="0"
@@ -58,7 +43,8 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
                 style={{ padding: '8px 10px' }}
               />
             </div>
-            <div className="form-group" style={{ margin: 0 }}>
+            <div className="form-group item-qty" style={{ margin: 0 }}>
+              <span className="mobile-field-tag">માપ ({item.unit})</span>
               <input
                 type="number"
                 min="0"
@@ -70,7 +56,7 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
               />
             </div>
             <div
-              className="calc-result"
+              className="calc-result item-amt"
               style={{ padding: '8px 10px', fontSize: '13px', textAlign: 'right' }}
             >
               ₹ {fmt(itemTotal)}
@@ -83,14 +69,14 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
 
       <div className="labour-highlight">
         <div className="labour-row">
-          <div className="item-label" style={{ color: 'var(--accent)', fontWeight: 600, padding: 0 }}>
+          <div className="item-label labour-title-cell" style={{ color: 'var(--accent)', fontWeight: 600, padding: 0 }}>
             Labour (મજૂરી)
             <div style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text3)', marginTop: '2px' }}>
               flat rate (default: 0)
             </div>
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: '11px' }}>Amount (₹)</label>
+          <div className="form-group labour-input-cell" style={{ margin: 0 }}>
+            <label style={{ fontSize: '11px' }}>મજૂરી રકમ (₹)</label>
             <input
               type="number"
               min="0"
@@ -102,7 +88,7 @@ export default function ReupholsteryForm({ formData, onChangeField }) {
             />
           </div>
           <div
-            className="calc-result"
+            className="calc-result labour-amt-cell"
             style={{ padding: '8px 10px', fontSize: '13px', textAlign: 'right' }}
           >
             ₹ {fmt(labour)}

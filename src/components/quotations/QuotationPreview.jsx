@@ -1,5 +1,6 @@
 import { fmt, num } from '../../utils/formatters';
 import { getStatusMeta } from '../../constants/orderStatus';
+import { formatMattressWarrantyLabel } from '../../utils/settings';
 import {
   buildSofaWhatsAppMessage,
   shareOnWhatsApp,
@@ -18,8 +19,11 @@ export default function QuotationPreview({
   quotationDate,
   service,
   serviceLabel,
+  mattressCompany,
+  mattressCompanyName,
   mattressThickness,
   mattressWarranty,
+  mattressWarrantyLabel,
   breakdown,
   totals,
   commission,
@@ -39,6 +43,9 @@ export default function QuotationPreview({
   const adv = Math.max(0, num(advance));
   const balance = Math.max(0, num(totals?.grand) - adv);
   const statusMeta = getStatusMeta(status);
+  const resolvedWarLabel =
+    mattressWarrantyLabel ||
+    formatMattressWarrantyLabel(mattressWarranty, mattressCompany, settings);
 
   const handleWhatsApp = () => {
     const mockQuote = {
@@ -47,8 +54,11 @@ export default function QuotationPreview({
       date: quotationDate,
       serviceType: service?.id || 'multi',
       serviceLabel: resolvedLabel,
+      mattressCompany,
+      mattressCompanyName,
       mattressThickness,
       mattressWarranty,
+      mattressWarrantyLabel: resolvedWarLabel,
       commission,
       gst,
       discount,
@@ -121,6 +131,12 @@ export default function QuotationPreview({
             </div>
             {isMatt && (
               <>
+                {mattressCompanyName && (
+                  <div className="meta-item">
+                    <div className="label">ગાદલાની કંપની</div>
+                    <div className="value">{mattressCompanyName}</div>
+                  </div>
+                )}
                 <div className="meta-item">
                   <div className="label">ગાદલાની જાડાઈ</div>
                   <div className="value">
@@ -129,9 +145,7 @@ export default function QuotationPreview({
                 </div>
                 <div className="meta-item">
                   <div className="label">વોરંટી (Warranty)</div>
-                  <div className="value">
-                    {mattressWarranty === '10year' ? '10-Year' : '15-Year'}
-                  </div>
+                  <div className="value">{resolvedWarLabel}</div>
                 </div>
               </>
             )}

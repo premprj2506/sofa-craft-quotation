@@ -65,6 +65,25 @@ export const MATTRESS_RATES = {
   '6inch': { '10year': 310, '15year': 360 },
 };
 
+export const DEFAULT_MATTRESS_COMPANIES = [
+  {
+    id: 'sleepwell',
+    name: 'Sleepwell',
+    warranties: [
+      { id: '10year', label: '10 વર્ષ (10-Year)', rate4: 260, rate6: 330 },
+      { id: '15year', label: '15 વર્ષ (15-Year)', rate4: 320, rate6: 390 },
+    ],
+  },
+  {
+    id: 'kurlon',
+    name: 'Kurlon',
+    warranties: [
+      { id: '10year', label: '10 વર્ષ (10-Year)', rate4: 240, rate6: 310 },
+      { id: '15year', label: '15 વર્ષ (15-Year)', rate4: 290, rate6: 360 },
+    ],
+  },
+];
+
 export const REUPHOLSTERY_ITEMS = [
   { key: 'sponge4', label: '4 inch સ્પંચ', unit: 'feet(ફૂટ)' },
   { key: 'sponge2', label: '2 inch ની સીટ', unit: 'qty(નંગ)' },

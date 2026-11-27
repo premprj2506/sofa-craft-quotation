@@ -15,8 +15,13 @@
   .step-selector,
   .toast,
   .quote-list,
-  .mobile-bottom-nav {
+  .mobile-bottom-nav,
+  .mobile-sticky-bar {
     display: none !important;
+  }
+
+  .collapsible-body.is-collapsed {
+    display: block !important;
   }
 
   body {

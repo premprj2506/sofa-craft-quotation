@@ -1,4 +1,5 @@
-import { ORDER_STATUSES } from '../../constants/orderStatus';
+import { ORDER_STATUSES, getStatusMeta } from '../../constants/orderStatus';
+import CollapsibleCard from '../common/CollapsibleCard';
 
 export default function AdjustmentsForm({
   commission,
@@ -8,12 +9,21 @@ export default function AdjustmentsForm({
   status = 'pending',
   onChangeAdjustment,
 }) {
+  const statusLabel = getStatusMeta(status).label;
+  const parts = [statusLabel];
+  if (Number(gst) > 0) parts.push(`GST ${gst}%`);
+  if (Number(advance) > 0) parts.push(`બાનું ₹${Number(advance).toLocaleString('en-IN')}`);
+
   return (
-    <div className="form-card no-print">
-      <div className="form-section-title">Adjustments, બાનું અને સ્ટેટસ</div>
-      <div className="form-row three">
+    <CollapsibleCard
+      title="કમિશન · જીએસટી · બાનું · સ્ટેટસ"
+      summary={parts.join(' · ')}
+      defaultOpenMobile={false}
+      className="no-print"
+    >
+      <div className="form-row three compact-three">
         <div className="form-group">
-          <label>Commission (%) કમિશન</label>
+          <label>કમિશન (%)</label>
           <input
             type="number"
             min="0"
@@ -24,7 +34,7 @@ export default function AdjustmentsForm({
           />
         </div>
         <div className="form-group">
-          <label>GST (%) જીએસટી</label>
+          <label>જીએસટી (%)</label>
           <input
             type="number"
             min="0"
@@ -35,7 +45,7 @@ export default function AdjustmentsForm({
           />
         </div>
         <div className="form-group">
-          <label>Discount (₹) ડિસ્કાઉન્ટ</label>
+          <label>ડિસ્કાઉન્ટ (₹)</label>
           <input
             type="number"
             min="0"
@@ -45,7 +55,7 @@ export default function AdjustmentsForm({
         </div>
       </div>
 
-      <div className="form-row" style={{ marginBottom: 0, alignItems: 'end' }}>
+      <div className="form-row mobile-stack" style={{ marginBottom: 0, alignItems: 'end' }}>
         <div className="form-group">
           <label>એડવાન્સ / બાનું (₹)</label>
           <input
@@ -64,7 +74,7 @@ export default function AdjustmentsForm({
                 key={st.id}
                 type="button"
                 className={`tab ${status === st.id ? 'active' : ''}`}
-                style={{ padding: '8px 12px', fontSize: '12px' }}
+                style={{ padding: '7px 10px', fontSize: '12px' }}
                 onClick={() => onChangeAdjustment('status', st.id)}
               >
                 {st.label}
@@ -73,6 +83,6 @@ export default function AdjustmentsForm({
           </div>
         </div>
       </div>
-    </div>
+    </CollapsibleCard>
   );
 }
