@@ -462,6 +462,47 @@ export function exportKarigarPDF(params, showToast) {
     });
   });
 
+  if (sheet.foamSummary) {
+    rows.push({
+      header: true,
+      label: `ઘ) 4" સ્પંચ શીટ — ${sheet.foamSummary}`,
+      details: '',
+      amount: '',
+    });
+  }
+  if (sheet.foam2Summary) {
+    rows.push({
+      header: true,
+      label: `ચ) 2" ટેકો સીટ — ${sheet.foam2Summary}`,
+      details: '',
+      amount: '',
+    });
+  }
+  if (sheet.foam1Summary) {
+    rows.push({
+      header: true,
+      label: `છ) 1" ની સીટ — ${sheet.foam1Summary}`,
+      details: '',
+      amount: '',
+    });
+  }
+  if (sheet.stanzoSummary) {
+    rows.push({
+      header: true,
+      label: `જ) 15mm સ્ટેન્ઝો — ${sheet.stanzoSummary}`,
+      details: '',
+      amount: '',
+    });
+  }
+  if (sheet.fevicolSummary) {
+    rows.push({
+      header: true,
+      label: `ઝ) ફેવિકોલ — ${sheet.fevicolSummary}`,
+      details: '',
+      amount: '',
+    });
+  }
+
   renderInvoiceToPDF({
     title: sheet.shopName,
     subtitle: 'કારીગર કટિંગ શીટ (Cutting Sheet)',

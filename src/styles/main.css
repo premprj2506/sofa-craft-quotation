@@ -2193,6 +2193,10 @@ select:focus-visible {
   .main.has-mobile-sticky-bar {
     padding-bottom: 154px;
   }
+  .form-row.three.compact-three label.dim-label-arrow {
+    white-space: normal;
+    line-height: 1.2;
+  }
   .mobile-sticky-bar {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }
@@ -2594,6 +2598,121 @@ select:focus-visible {
 
 .collapsible-body.is-collapsed {
   display: none;
+}
+
+.form-group label.dim-label-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dim-arrow-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--curtain-bg);
+  color: var(--curtain-maroon);
+  border: 1px solid rgba(136, 41, 64, 0.2);
+  flex-shrink: 0;
+}
+
+/* 4-Inch Foam Sheet Breakdown & Recommendations */
+.foam-summary-box {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.foam-lounger-block {
+  padding-bottom: 4px;
+}
+
+.foam-sub-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-left: 10px;
+  font-size: 11.5px;
+  color: var(--text3);
+}
+
+.foam-sheets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.foam-sheet-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 8px;
+  text-align: center;
+}
+
+.foam-sheet-chip.best {
+  background: var(--teal-bg);
+  border-color: rgba(29, 122, 95, 0.4);
+}
+
+.fsc-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fsc-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: var(--teal);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.fsc-qty {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.foam-sheet-chip.best .fsc-qty {
+  color: var(--teal);
+}
+
+.fsc-waste {
+  font-size: 10.5px;
+  color: var(--text3);
+}
+
+.foam2-summary-strip {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  border: 1px solid rgba(184, 108, 37, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.foam2-summary-strip strong {
+  color: var(--accent);
 }
 
 .mobile-sticky-bar {

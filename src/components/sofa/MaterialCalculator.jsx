@@ -5,6 +5,11 @@ import {
   INCHES_PER_METER,
   COVER_DEFAULT_HANDLE_INCHES,
   COVER_HANDLE_ALLOWANCE,
+  DEFAULT_SEAT_DEPTH_INCHES,
+  DEFAULT_LOUNGER_CORNER_LEN_INCHES,
+  DEFAULT_LOUNGER_CORNER_WIDTH_INCHES,
+  DEFAULT_TEKO_HEIGHT_INCHES,
+  FOAM1_TEKO_WIDTH_DEFAULT,
 } from '../../utils/sofaMaterialCalculator';
 import { generateId } from '../../utils/id';
 import { num } from '../../utils/formatters';
@@ -52,8 +57,23 @@ export default function MaterialCalculator({
   const [totalFeet, setTotalFeet] = useState(16);
   const [shape, setShape] = useState('straight');
 
-  // Full Sofa option
+  // Full Sofa options (Teko + 4" Foam depth & lounger corner)
   const [tekoMode, setTekoMode] = useState('normal');
+  const [seatDepthInches, setSeatDepthInches] = useState(
+    DEFAULT_SEAT_DEPTH_INCHES
+  );
+  const [loungerCornerLenInches, setLoungerCornerLenInches] = useState(
+    DEFAULT_LOUNGER_CORNER_LEN_INCHES
+  );
+  const [loungerCornerWidthInches, setLoungerCornerWidthInches] = useState(
+    DEFAULT_LOUNGER_CORNER_WIDTH_INCHES
+  );
+  const [tekoHeightInches, setTekoHeightInches] = useState(
+    DEFAULT_TEKO_HEIGHT_INCHES
+  );
+  const [foam1TekoWidthInches, setFoam1TekoWidthInches] = useState(
+    FOAM1_TEKO_WIDTH_DEFAULT
+  );
 
   // Sofa Cover options
   const [coverSubType, setCoverSubType] = useState('simple'); // 'simple' | 'sponge'
@@ -188,9 +208,14 @@ export default function MaterialCalculator({
     coverSubType,
     coverSeatCase,
     handleInches,
+    seatDepthInches,
+    loungerCornerLenInches,
+    loungerCornerWidthInches,
+    tekoHeightInches,
+    foam1TekoWidthInches,
   });
 
-  const { kapad, coverKapad, totalSofaFeet } = result;
+  const { kapad, coverKapad, foam4, foam2, foam1, stanzo, fevicol, totalSofaFeet } = result;
   const { tekoPacked } = kapad;
   const hasLounger = sections.some((s) => s.type === 'lounger');
 
@@ -204,6 +229,11 @@ export default function MaterialCalculator({
     totalSofaFeet,
     kapad,
     coverKapad,
+    foam4,
+    foam2,
+    foam1,
+    stanzo,
+    fevicol,
     tekoModeLabel,
     settings,
   });
@@ -513,24 +543,123 @@ export default function MaterialCalculator({
               </div>
             </div>
 
-            {/* Full Sofa Teko Option vs Sofa Cover Options */}
+            {/* Full Sofa Teko & 4" Foam Options vs Sofa Cover Options */}
             {purpose === 'full_sofa' ? (
-              <div style={{ marginTop: '16px' }}>
-                <label className="sub-label">
-                  ટેકાની ડિઝાઇન (વધારો નક્કી કરવા માટે):
-                </label>
-                <div className="tab-group" style={{ marginBottom: 0 }}>
-                  {TEKO_MODES.map((tm) => (
-                    <button
-                      key={tm.id}
-                      type="button"
-                      className={`tab ${tekoMode === tm.id ? 'active' : ''}`}
-                      onClick={() => setTekoMode(tm.id)}
-                    >
-                      {tm.label}
-                    </button>
-                  ))}
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label className="sub-label">
+                    ટેકાની ડિઝાઇન (વધારો નક્કી કરવા માટે):
+                  </label>
+                  <div className="tab-group" style={{ marginBottom: 0 }}>
+                    {TEKO_MODES.map((tm) => (
+                      <button
+                        key={tm.id}
+                        type="button"
+                        className={`tab ${tekoMode === tm.id ? 'active' : ''}`}
+                        onClick={() => setTekoMode(tm.id)}
+                      >
+                        {tm.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <div className="form-row" style={{ marginBottom: 0 }}>
+                  <div className="form-group">
+                    <label>
+                      4" સ્પંચ · બેઠક પહોળાઈ (ઇંચ · {foam4.seatDepthFt}')
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={seatDepthInches}
+                      onChange={(e) =>
+                        setSeatDepthInches(
+                          e.target.value === '' ? '' : Number(e.target.value)
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>
+                      2" ટેકો સીટ · ઊંચાઈ (ઇંચ · ડિફોલ્ટ {DEFAULT_TEKO_HEIGHT_INCHES}")
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={tekoHeightInches}
+                      onChange={(e) =>
+                        setTekoHeightInches(
+                          e.target.value === '' ? '' : Number(e.target.value)
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                {tekoMode !== 'lining12mm' && (
+                  <div className="form-row" style={{ marginBottom: 0 }}>
+                    <div className="form-group">
+                      <label>
+                        1" ટેકો પટ્ટો પહોળાઈ (ઇંચ · ડિફોલ્ટ {FOAM1_TEKO_WIDTH_DEFAULT}")
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={foam1TekoWidthInches}
+                        onChange={(e) =>
+                          setFoam1TekoWidthInches(
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>1" બેઠક પહોળાઈ (ફિક્સ)</label>
+                      <div className="calc-result">36" (પૂરી સીટ)</div>
+                    </div>
+                  </div>
+                )}
+
+                {hasLounger && (
+                  <div className="form-row" style={{ marginBottom: 0 }}>
+                    <div className="form-group">
+                      <label>
+                        લોન્જર ખૂણા લંબાઈ (ઇંચ · ડિફોલ્ટ {DEFAULT_LOUNGER_CORNER_LEN_INCHES}")
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={loungerCornerLenInches}
+                        onChange={(e) =>
+                          setLoungerCornerLenInches(
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>
+                        લોન્જર ખૂણા પહોળાઈ (ઇંચ · ડિફોલ્ટ {DEFAULT_LOUNGER_CORNER_WIDTH_INCHES}")
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={loungerCornerWidthInches}
+                        onChange={(e) =>
+                          setLoungerCornerWidthInches(
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -721,11 +850,219 @@ export default function MaterialCalculator({
                   <span>{kapad.totalMeters.toFixed(2)} મીટર</span>
                 </div>
 
+                {/* 4-Inch Foam Sheet Breakdown */}
+                <div className="foam-summary-box">
+                  <div className="mat-sub-header" style={{ marginBottom: '6px' }}>
+                    <span>ઘ) 4 ઇંચ સ્પંચ (પહોળાઈ {foam4.seatDepthInches}")</span>
+                    <strong>{foam4.totalSqft.toFixed(2)} ફૂટ</strong>
+                  </div>
+
+                  {foam4.items.map((item) =>
+                    item.isLounger ? (
+                      <div key={item.id} className="foam-lounger-block">
+                        <div className="mat-line-detail">
+                          <span>{item.label}</span>
+                          <strong>{item.sqft.toFixed(2)} ft</strong>
+                        </div>
+                        <div className="foam-sub-split">
+                          <span>• પાછળ: {item.backDetail}</span>
+                          <span>• ખૂણો: {item.cornerDetail}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={item.id} className="mat-line-detail">
+                        <span>{item.label}</span>
+                        <strong>{item.sqft.toFixed(2)} ft</strong>
+                      </div>
+                    )
+                  )}
+
+                  {foam4.totalSqft > 0 && (
+                    <div className="foam-sheets-grid">
+                      {foam4.sheetOptions.map((sh) => {
+                        const isBest = sh.id === foam4.recommendedSheet?.id;
+                        return (
+                          <div
+                            key={sh.id}
+                            className={`foam-sheet-chip ${isBest ? 'best' : ''}`}
+                          >
+                            <div className="fsc-top">
+                              <span>{sh.label}</span>
+                              {isBest && <span className="fsc-badge">શ્રેષ્ઠ</span>}
+                            </div>
+                            <div className="fsc-qty">
+                              {sh.sheetsNeeded} શીટ ({sh.totalSheetSqft}')
+                            </div>
+                            <div className="fsc-waste">બચત: {sh.wasteSqft}'</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2-Inch Teko Sheet (3x6 = 18 sq.ft) Breakdown */}
+                <div className="foam-summary-box">
+                  <div className="mat-sub-header" style={{ marginBottom: '6px' }}>
+                    <span>
+                      ચ) 2" ટેકો સીટ (3×6 · ઊંચાઈ {foam2.tekoHeightInches}")
+                    </span>
+                    <strong>{foam2.sheetsNeeded} શીટ</strong>
+                  </div>
+
+                  {foam2.items.map((item) => (
+                    <div key={item.id} className="mat-line-detail">
+                      <span>{item.label}</span>
+                      <span className="mat-formula">
+                        {item.cutLabel} = <strong>{item.sqft.toFixed(2)} ft</strong>
+                      </span>
+                    </div>
+                  ))}
+
+                  {foam2.totalSqft > 0 && (
+                    <div className="foam2-summary-strip">
+                      <span>
+                        કુલ: <strong>{foam2.totalSqft.toFixed(2)} ફૂટ</strong> ÷ 18 ={' '}
+                        {foam2.exactSheets} → <strong>{foam2.sheetsNeeded} શીટ (નંગ)</strong>
+                      </span>
+                      <span className="fsc-waste">બચત: {foam2.wasteSqft}'</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 1-Inch Sheet (3x6, rounded to whole/half) Breakdown */}
+                <div className="foam-summary-box">
+                  <div className="mat-sub-header" style={{ marginBottom: '6px' }}>
+                    <span>છ) 1" ની સીટ (3×6 · આખી / અડધી)</span>
+                    <strong>{foam1.totalSheets} સીટ</strong>
+                  </div>
+
+                  <div className="mat-line-detail">
+                    <span>બેઠક ({foam1.bethakWidthInches}" ફિક્સ · {foam1.bethakTotalInches}")</span>
+                    <strong>{foam1.bethakSheetsRaw.toFixed(2)} સીટ</strong>
+                  </div>
+                  <div className="mat-line-detail">
+                    <span>
+                      {foam1.isLining
+                        ? 'ટેકો (લાઈનીંગ → સ્ટેન્ઝો)'
+                        : `ટેકો (${foam1.tekoWidthInches}" પટ્ટો · ${foam1.tekoTotalInches}")`}
+                    </span>
+                    <strong>{foam1.tekoSheetsRaw.toFixed(2)} સીટ</strong>
+                  </div>
+                  <div className="mat-line-detail">
+                    <span>હેન્ડલ ({foam1.handleCount} × 0.5 સીટ)</span>
+                    <strong>{foam1.handleSheetsRaw.toFixed(2)} સીટ</strong>
+                  </div>
+
+                  <div className="foam2-summary-strip">
+                    <span>
+                      કુલ: {foam1.rawTotalSheets.toFixed(2)} →{' '}
+                      <strong>{foam1.totalSheets} સીટ</strong>
+                    </span>
+                    <span className="fsc-waste">આખી / અડધી રાઉન્ડ</span>
+                  </div>
+                </div>
+
+                {/* 15mm Stanzo (active when tekoMode === 'lining12mm') */}
+                {stanzo.active && (
+                  <div className="foam-summary-box">
+                    <div className="mat-sub-header" style={{ marginBottom: '6px' }}>
+                      <span>જ) 15mm સ્ટેન્ઝો (54" પનો · +{stanzo.allowance}")</span>
+                      <strong>{stanzo.meters.toFixed(2)} m</strong>
+                    </div>
+
+                    <div className="lanes-grid">
+                      <div
+                        className={`lane-box ${
+                          stanzo.packed.lane1Sum >= stanzo.packed.lane2Sum
+                            ? 'lane-winner'
+                            : ''
+                        }`}
+                      >
+                        <div className="lane-title">
+                          લાઈન - ૧
+                          {stanzo.packed.lane1Sum >= stanzo.packed.lane2Sum && (
+                            <span className="lane-badge">વધુ</span>
+                          )}
+                        </div>
+                        {stanzo.packed.lane1.length > 0 ? (
+                          stanzo.packed.lane1.map((p) => (
+                            <div key={p.id} className="lane-piece">
+                              <span>{p.label}</span>
+                              <span>{p.totalInches}"</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="lane-empty">ખાલી</div>
+                        )}
+                        <div className="lane-total">{stanzo.packed.lane1Sum}"</div>
+                      </div>
+
+                      <div
+                        className={`lane-box ${
+                          stanzo.packed.lane2Sum > stanzo.packed.lane1Sum
+                            ? 'lane-winner'
+                            : ''
+                        }`}
+                      >
+                        <div className="lane-title">
+                          લાઈન - ૨
+                          {stanzo.packed.lane2Sum > stanzo.packed.lane1Sum && (
+                            <span className="lane-badge">વધુ</span>
+                          )}
+                        </div>
+                        {stanzo.packed.lane2.length > 0 ? (
+                          stanzo.packed.lane2.map((p) => (
+                            <div key={p.id} className="lane-piece">
+                              <span>{p.label}</span>
+                              <span>{p.totalInches}"</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="lane-empty">ખાલી</div>
+                        )}
+                        <div className="lane-total">{stanzo.packed.lane2Sum}"</div>
+                      </div>
+                    </div>
+
+                    <div className="mat-line-detail" style={{ marginTop: '8px' }}>
+                      <span>મોટી લાઈન:</span>
+                      <span className="mat-formula">
+                        {stanzo.packed.maxInches}" ÷ 39 ={' '}
+                        <strong>{stanzo.meters.toFixed(2)} m</strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fevicol (1 liter per 5 total sofa feet) */}
+                <div className="mat-group-card">
+                  <div className="mat-group-title">
+                    <span>ઝ) ફેવિકોલ (દર {fevicol.stepFeet} ફૂટે 1 લિ.)</span>
+                    <strong>{fevicol.liters} લિટર</strong>
+                  </div>
+                  <div className="mat-line-detail">
+                    <span>કુલ સોફા માપ: {fevicol.totalFeet} ફૂટ</span>
+                    <span className="mat-formula">
+                      {fevicol.totalFeet} ÷ {fevicol.stepFeet} →{' '}
+                      <strong>{fevicol.liters} લિટર</strong>
+                    </span>
+                  </div>
+                </div>
+
                 <div className="side-actions no-print">
                   <button
                     type="button"
                     className="btn btn-primary btn-full"
-                    onClick={() => onTransferToQuote('reupholstery', kapad.totalMeters)}
+                    onClick={() =>
+                      onTransferToQuote('reupholstery', kapad.totalMeters, undefined, {
+                        sponge4Sqft: foam4.totalSqft,
+                        sponge2Qty: foam2.sheetsNeeded,
+                        sponge1Qty: foam1.totalSheets,
+                        stanzoMeters: stanzo.active ? stanzo.meters : 0,
+                        fevicolQty: fevicol.liters,
+                      })
+                    }
                   >
                     <span>જૂના સોફા કોટેશનમાં ઉમેરો</span>
                     <ArrowRightIcon size={17} />
@@ -930,8 +1267,8 @@ export default function MaterialCalculator({
             )}
 
             <div className="info-box amber no-print">
-              <strong>આગામી મટિરિયલ્સ:</strong> સ્પંચ (4", 2", 1"), 15mm સ્ટેન્ઝો,
-              ફેવિકોલ, માદરપાટ, રેકરોન અને સ્ટેપલર પિન આગળના તબક્કામાં ઉમેરાશે.
+              <strong>આગામી મટિરિયલ્સ:</strong> માદરપાટ, રેકરોન અને સ્ટેપલર પિન
+              આગળના તબક્કામાં ઉમેરાશે.
             </div>
           </div>
         </aside>
@@ -943,14 +1280,26 @@ export default function MaterialCalculator({
           ? coverKapad.totalMeters
           : kapad.totalMeters
         ).toFixed(2)} મીટર`}
-        subText={`${totalSofaFeet} ફૂટ · ${num(handleCount)} હેન્ડલ`}
+        subText={
+          purpose === 'full_sofa'
+            ? `4": ${foam4.totalSqft}' · 2": ${foam2.sheetsNeeded} · 1": ${foam1.totalSheets}${
+                stanzo.active ? ` · સ્ટેન્ઝો: ${stanzo.meters.toFixed(2)}m` : ''
+              } · ફેવિ: ${fevicol.liters}L`
+            : `${totalSofaFeet} ફૂટ · ${num(handleCount)} હેન્ડલ`
+        }
         actionLabel={
           purpose === 'sofa_cover' ? 'કવર કોટેશન →' : 'સોફા કોટેશન →'
         }
         onAction={() =>
           purpose === 'sofa_cover'
             ? onTransferToQuote('cover', coverKapad.totalMeters, coverSubType)
-            : onTransferToQuote('reupholstery', kapad.totalMeters)
+            : onTransferToQuote('reupholstery', kapad.totalMeters, undefined, {
+                sponge4Sqft: foam4.totalSqft,
+                sponge2Qty: foam2.sheetsNeeded,
+                sponge1Qty: foam1.totalSheets,
+                stanzoMeters: stanzo.active ? stanzo.meters : 0,
+                fevicolQty: fevicol.liters,
+              })
         }
         targetSideId="material-summary-side"
         variant="teal"

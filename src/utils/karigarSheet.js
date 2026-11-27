@@ -20,6 +20,11 @@ export function buildKarigarSheetData({
   totalSofaFeet = 0,
   kapad,
   coverKapad,
+  foam4,
+  foam2,
+  foam1,
+  stanzo,
+  fevicol,
   tekoModeLabel = '',
   settings = {},
 }) {
@@ -165,6 +170,26 @@ export function buildKarigarSheetData({
   }
 
   const totalMeters = isCover ? coverKapad.totalMeters : kapad.totalMeters;
+  const foamSummary =
+    !isCover && foam4 && foam4.totalSqft > 0
+      ? `${foam4.totalSqft.toFixed(2)} ફૂટ (${foam4.recommendedSheet.label} · ${foam4.recommendedSheet.sheetsNeeded} શીટ)`
+      : '';
+  const foam2Summary =
+    !isCover && foam2 && foam2.totalSqft > 0
+      ? `${foam2.sheetsNeeded} શીટ (${foam2.totalSqft.toFixed(2)} ફૂટ · 3×6 · ઊંચાઈ ${foam2.tekoHeightInches}")`
+      : '';
+  const foam1Summary =
+    !isCover && foam1 && foam1.totalSheets > 0
+      ? `${foam1.totalSheets} સીટ (બેઠક + ${foam1.isLining ? '0 ટેકો' : 'ટેકો'} + ${foam1.handleCount} હેન્ડલ)`
+      : '';
+  const stanzoSummary =
+    !isCover && stanzo && stanzo.active && stanzo.meters > 0
+      ? `${stanzo.meters.toFixed(2)} મીટર (લાઈન ${stanzo.packed.lane1Sum}" | ${stanzo.packed.lane2Sum}")`
+      : '';
+  const fevicolSummary =
+    !isCover && fevicol && fevicol.liters > 0
+      ? `${fevicol.liters} લિટર (${fevicol.totalFeet}' મુજબ)`
+      : '';
 
   return {
     shopName,
@@ -175,6 +200,11 @@ export function buildKarigarSheetData({
     parts,
     compactParts: compactParts || `${totalSofaFeet}'`,
     cuttingGroups,
+    foamSummary,
+    foam2Summary,
+    foam1Summary,
+    stanzoSummary,
+    fevicolSummary,
     totalMetersLabel: isCover ? 'કુલ કવર કાપડ' : 'કુલ જરૂરી કાપડ',
     totalMetersText: `${totalMeters.toFixed(2)} મીટર`,
   };

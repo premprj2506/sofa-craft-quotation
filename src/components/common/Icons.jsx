@@ -239,6 +239,26 @@ export function CartPlusIcon({ size = 17, className = '' }) {
   );
 }
 
+export function ArrowVerticalIcon({ size = 15, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M12 3v18" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="m7 16 5 5 5-5" />
+    </svg>
+  );
+}
+
+export function ArrowHorizontalIcon({ size = 15, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 12h18" />
+      <path d="m8 7-5 5 5 5" />
+      <path d="m16 7 5 5-5 5" />
+    </svg>
+  );
+}
+
 export function ServiceIcon({ id, size = 22 }) {
   switch (id) {
     case 'structure':

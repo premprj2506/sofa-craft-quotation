@@ -14,6 +14,8 @@ import {
   WhatsAppIcon,
   EditIcon,
   CopyIcon,
+  ArrowVerticalIcon,
+  ArrowHorizontalIcon,
 } from '../common/Icons';
 
 export default function CurtainDetail({
@@ -108,7 +110,9 @@ export default function CurtainDetail({
             {!isMulti && quote.measurements && (
               <>
                 <div className="meta-item">
-                  <div className="label">ઊંચાઈ × પહોળાઈ</div>
+                  <div className="label" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <ArrowVerticalIcon size={12} /> ઊંચાઈ × <ArrowHorizontalIcon size={12} /> લંબાઈ / પહોળાઈ
+                  </div>
                   <div className="value">
                     {quote.measurements.height || 0}" × {quote.measurements.width || 0}"
                   </div>

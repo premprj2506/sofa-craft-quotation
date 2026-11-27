@@ -18,6 +18,31 @@ export const COVER_LOUNGER_SPONGE_ALLOWANCE = 20;
 export const COVER_DEFAULT_HANDLE_INCHES = 33;
 export const COVER_HANDLE_ALLOWANCE = 6;
 
+// 4-Inch Foam Sheet Constants
+export const DEFAULT_SEAT_DEPTH_INCHES = 24;
+export const DEFAULT_LOUNGER_CORNER_LEN_INCHES = 18;
+export const DEFAULT_LOUNGER_CORNER_WIDTH_INCHES = 30;
+export const FOAM4_SHEETS = [
+  { id: '4x6', label: '4 × 6', sqft: 24 },
+  { id: '5x6', label: '5 × 6', sqft: 30 },
+  { id: '6x6', label: '6 × 6', sqft: 36 },
+];
+
+// 2-Inch Teko Sheet Constants (3 x 6 = 18 sq.ft)
+export const DEFAULT_TEKO_HEIGHT_INCHES = 15;
+export const FOAM2_SHEET_SQFT = 18;
+export const FOAM2_L_SUBTRACT_INCHES = 2;
+
+// 1-Inch Sheet & 15mm Stanzo Constants
+export const FOAM1_SHEET_SQFT = 18;
+export const FOAM1_BETHAK_WIDTH_INCHES = 36;
+export const FOAM1_TEKO_WIDTH_DEFAULT = 22;
+export const FOAM1_HANDLE_SHEETS_EACH = 0.5;
+export const STANZO_ALLOWANCE_INCHES = 10;
+
+// Fevicol Constants (1 liter per 5 total sofa feet step)
+export const FEVICOL_STEP_FEET = 5;
+
 export function round2(val) {
   return Math.round(num(val) * 100) / 100;
 }
@@ -560,16 +585,499 @@ export function calculateTotalSofaFeet(sections, handleCount) {
 }
 
 /**
+ * Calculates 4-inch foam (sponge) area in sq.ft and optimal sheet recommendations (4x6, 5x6, 6x6).
+ * - Straight: seatFt * (seatDepthInches / 12)
+ * - L-Corner: mainFt * (seatDepthInches / 12)  [corner excluded]
+ * - Lounger: (seatIn - cornerLenIn) * seatDepthInches / 144 + (cornerLenIn * cornerWidthIn) / 144
+ */
+export function calculateFoam4Inch(sections, options = {}) {
+  const seatDepthInches = Math.max(
+    0,
+    num(
+      options.seatDepthInches !== undefined && options.seatDepthInches !== ''
+        ? options.seatDepthInches
+        : DEFAULT_SEAT_DEPTH_INCHES
+    )
+  );
+  const loungerCornerLenInches = Math.max(
+    0,
+    num(
+      options.loungerCornerLenInches !== undefined &&
+        options.loungerCornerLenInches !== ''
+        ? options.loungerCornerLenInches
+        : DEFAULT_LOUNGER_CORNER_LEN_INCHES
+    )
+  );
+  const loungerCornerWidthInches = Math.max(
+    0,
+    num(
+      options.loungerCornerWidthInches !== undefined &&
+        options.loungerCornerWidthInches !== ''
+        ? options.loungerCornerWidthInches
+        : DEFAULT_LOUNGER_CORNER_WIDTH_INCHES
+    )
+  );
+
+  const seatDepthFt = round2(seatDepthInches / 12);
+  const items = [];
+
+  (sections || []).forEach((sec, idx) => {
+    const label = sec.label || `સોફો ${idx + 1}`;
+    if (sec.type === 'l_corner') {
+      const mainFt = Math.max(0, num(sec.mainFt));
+      if (mainFt > 0) {
+        const sqft = round2(mainFt * seatDepthFt);
+        items.push({
+          id: `${sec.id}-f4`,
+          label: `${label} (${mainFt}' × ${seatDepthFt}')`,
+          lengthFt: mainFt,
+          widthFt: seatDepthFt,
+          sqft,
+        });
+      }
+      return;
+    }
+
+    if (sec.type === 'lounger') {
+      const seatFt = Math.max(0, num(sec.seatFt));
+      if (seatFt > 0) {
+        const seatIn = round2(seatFt * 12);
+        const cornerIn = Math.min(seatIn, loungerCornerLenInches);
+        const backIn = Math.max(0, round2(seatIn - cornerIn));
+        const backSqft = round2((backIn * seatDepthInches) / 144);
+        const cornerSqft = round2(
+          (cornerIn * loungerCornerWidthInches) / 144
+        );
+        const totalSectionSqft = round2(backSqft + cornerSqft);
+
+        items.push({
+          id: `${sec.id}-f4`,
+          label: `${label} (${seatFt}')`,
+          isLounger: true,
+          backIn,
+          cornerIn,
+          backDetail: `${round2(backIn / 12)}' × ${seatDepthFt}' = ${backSqft} ft`,
+          cornerDetail: `${round2(cornerIn / 12)}' × ${round2(
+            loungerCornerWidthInches / 12
+          )}' = ${cornerSqft} ft`,
+          backSqft,
+          cornerSqft,
+          sqft: totalSectionSqft,
+        });
+      }
+      return;
+    }
+
+    const seatFt = Math.max(0, num(sec.seatFt));
+    if (seatFt > 0) {
+      const sqft = round2(seatFt * seatDepthFt);
+      items.push({
+        id: `${sec.id}-f4`,
+        label: `${label} (${seatFt}' × ${seatDepthFt}')`,
+        lengthFt: seatFt,
+        widthFt: seatDepthFt,
+        sqft,
+      });
+    }
+  });
+
+  const totalSqft = round2(items.reduce((sum, it) => sum + it.sqft, 0));
+
+  const sheetOptions = FOAM4_SHEETS.map((sh) => {
+    const sheetsNeeded = totalSqft > 0 ? Math.ceil(totalSqft / sh.sqft) : 0;
+    const totalSheetSqft = sheetsNeeded * sh.sqft;
+    const wasteSqft = round2(Math.max(0, totalSheetSqft - totalSqft));
+    return {
+      ...sh,
+      sheetsNeeded,
+      totalSheetSqft,
+      wasteSqft,
+    };
+  });
+
+  const recommendedSheet =
+    totalSqft > 0
+      ? [...sheetOptions].sort(
+          (a, b) =>
+            a.wasteSqft - b.wasteSqft ||
+            a.sheetsNeeded - b.sheetsNeeded ||
+            a.sqft - b.sqft
+        )[0]
+      : sheetOptions[0];
+
+  return {
+    seatDepthInches,
+    seatDepthFt,
+    loungerCornerLenInches,
+    loungerCornerWidthInches,
+    items,
+    totalSqft,
+    sheetOptions,
+    recommendedSheet,
+  };
+}
+
+/**
+ * Calculates 2-inch foam (teko sheet 3x6 = 18 sq.ft) in sq.ft and sheets needed.
+ * - Straight: exact seatFt * 12
+ * - L-Corner: (mainFt * 12 - 2) and (cornerFt * 12 - 2)
+ * - Lounger: (seatFt * 12 - loungerCornerLenInches)
+ */
+export function calculateFoam2Inch(sections, options = {}) {
+  const tekoHeightInches = Math.max(
+    0,
+    num(
+      options.tekoHeightInches !== undefined && options.tekoHeightInches !== ''
+        ? options.tekoHeightInches
+        : DEFAULT_TEKO_HEIGHT_INCHES
+    )
+  );
+  const loungerCornerLenInches = Math.max(
+    0,
+    num(
+      options.loungerCornerLenInches !== undefined &&
+        options.loungerCornerLenInches !== ''
+        ? options.loungerCornerLenInches
+        : DEFAULT_LOUNGER_CORNER_LEN_INCHES
+    )
+  );
+
+  const items = [];
+
+  (sections || []).forEach((sec, idx) => {
+    const label = sec.label || `સોફો ${idx + 1}`;
+    if (sec.type === 'l_corner') {
+      const mainFt = Math.max(0, num(sec.mainFt));
+      const cornerFt = Math.max(0, num(sec.cornerFt));
+      if (mainFt > 0) {
+        const cutIn = Math.max(
+          0,
+          round2(mainFt * 12 - FOAM2_L_SUBTRACT_INCHES)
+        );
+        const sqft = round2((cutIn * tekoHeightInches) / 144);
+        items.push({
+          id: `${sec.id}-f2m`,
+          label: `${label} - મોટો ભાગ`,
+          cutInches: cutIn,
+          tekoHeightInches,
+          cutLabel: `${cutIn}" × ${tekoHeightInches}"`,
+          sqft,
+        });
+      }
+      if (cornerFt > 0) {
+        const cutIn = Math.max(
+          0,
+          round2(cornerFt * 12 - FOAM2_L_SUBTRACT_INCHES)
+        );
+        const sqft = round2((cutIn * tekoHeightInches) / 144);
+        items.push({
+          id: `${sec.id}-f2c`,
+          label: `${label} - ખૂણિયો`,
+          cutInches: cutIn,
+          tekoHeightInches,
+          cutLabel: `${cutIn}" × ${tekoHeightInches}"`,
+          sqft,
+        });
+      }
+      return;
+    }
+
+    if (sec.type === 'lounger') {
+      const seatFt = Math.max(0, num(sec.seatFt));
+      if (seatFt > 0) {
+        const cutIn = Math.max(
+          0,
+          round2(seatFt * 12 - loungerCornerLenInches)
+        );
+        const sqft = round2((cutIn * tekoHeightInches) / 144);
+        items.push({
+          id: `${sec.id}-f2l`,
+          label: `${label} (ખૂણા વગર)`,
+          cutInches: cutIn,
+          tekoHeightInches,
+          cutLabel: `${cutIn}" × ${tekoHeightInches}"`,
+          sqft,
+        });
+      }
+      return;
+    }
+
+    const seatFt = Math.max(0, num(sec.seatFt));
+    if (seatFt > 0) {
+      const cutIn = round2(seatFt * 12);
+      const sqft = round2((cutIn * tekoHeightInches) / 144);
+      items.push({
+        id: `${sec.id}-f2s`,
+        label,
+        cutInches: cutIn,
+        tekoHeightInches,
+        cutLabel: `${cutIn}" × ${tekoHeightInches}"`,
+        sqft,
+      });
+    }
+  });
+
+  const totalLengthInches = round2(
+    items.reduce((sum, it) => sum + it.cutInches, 0)
+  );
+  const totalSqft = round2((totalLengthInches * tekoHeightInches) / 144);
+  const exactSheets = round2(totalSqft / FOAM2_SHEET_SQFT);
+  const sheetsNeeded =
+    totalSqft > 0 ? Math.ceil(totalSqft / FOAM2_SHEET_SQFT) : 0;
+  const totalSheetSqft = sheetsNeeded * FOAM2_SHEET_SQFT;
+  const wasteSqft = round2(Math.max(0, totalSheetSqft - totalSqft));
+
+  return {
+    tekoHeightInches,
+    sheetSqft: FOAM2_SHEET_SQFT,
+    items,
+    totalLengthInches,
+    totalSqft,
+    exactSheets,
+    sheetsNeeded,
+    totalSheetSqft,
+    wasteSqft,
+  };
+}
+
+/**
+ * Calculates 1-inch foam sheets (3x6 = 36"x72" = 18 sq.ft), rounded to nearest 0.5 sheet (આખી/અડધી):
+ * - Bethak (compulsory): full 36" width * seat length (L-corner main only)
+ * - Teko (when simple or bhag; 0 when lining12mm): 22" width (editable) * teko length
+ * - Handles (compulsory): 0.5 sheet per handle
+ */
+export function calculateFoam1Inch(sections, handleCount, options = {}) {
+  const tekoMode = options.tekoMode || 'normal';
+  const isLining = tekoMode === 'lining12mm';
+  const tekoWidthInches = Math.max(
+    0,
+    num(
+      options.foam1TekoWidthInches !== undefined &&
+        options.foam1TekoWidthInches !== ''
+        ? options.foam1TekoWidthInches
+        : FOAM1_TEKO_WIDTH_DEFAULT
+    )
+  );
+  const loungerCornerLenInches = Math.max(
+    0,
+    num(
+      options.loungerCornerLenInches !== undefined &&
+        options.loungerCornerLenInches !== ''
+        ? options.loungerCornerLenInches
+        : DEFAULT_LOUNGER_CORNER_LEN_INCHES
+    )
+  );
+
+  let bethakTotalInches = 0;
+  let tekoTotalInches = 0;
+
+  (sections || []).forEach((sec) => {
+    if (sec.type === 'l_corner') {
+      const mainFt = Math.max(0, num(sec.mainFt));
+      const cornerFt = Math.max(0, num(sec.cornerFt));
+      if (mainFt > 0) {
+        bethakTotalInches += round2(mainFt * 12);
+        if (!isLining) tekoTotalInches += round2(mainFt * 12);
+      }
+      if (cornerFt > 0 && !isLining) {
+        tekoTotalInches += round2(cornerFt * 12);
+      }
+      return;
+    }
+
+    if (sec.type === 'lounger') {
+      const seatFt = Math.max(0, num(sec.seatFt));
+      if (seatFt > 0) {
+        const seatIn = round2(seatFt * 12);
+        bethakTotalInches += seatIn;
+        if (!isLining) {
+          tekoTotalInches += Math.max(0, round2(seatIn - loungerCornerLenInches));
+        }
+      }
+      return;
+    }
+
+    const seatFt = Math.max(0, num(sec.seatFt));
+    if (seatFt > 0) {
+      const seatIn = round2(seatFt * 12);
+      bethakTotalInches += seatIn;
+      if (!isLining) tekoTotalInches += seatIn;
+    }
+  });
+
+  bethakTotalInches = round2(bethakTotalInches);
+  tekoTotalInches = round2(tekoTotalInches);
+
+  const bethakSqft = round2(
+    (bethakTotalInches * FOAM1_BETHAK_WIDTH_INCHES) / 144
+  );
+  const bethakSheetsRaw = round2(bethakSqft / FOAM1_SHEET_SQFT);
+
+  const tekoSqft = isLining
+    ? 0
+    : round2((tekoTotalInches * tekoWidthInches) / 144);
+  const tekoSheetsRaw = isLining ? 0 : round2(tekoSqft / FOAM1_SHEET_SQFT);
+
+  const handles = Math.max(0, num(handleCount));
+  const handleSheetsRaw = round2(handles * FOAM1_HANDLE_SHEETS_EACH);
+
+  const rawTotalSheets = round2(
+    bethakSheetsRaw + tekoSheetsRaw + handleSheetsRaw
+  );
+  const totalSheets =
+    rawTotalSheets > 0
+      ? Math.ceil(rawTotalSheets * 2 - 1e-9) / 2
+      : 0;
+
+  return {
+    isLining,
+    bethakWidthInches: FOAM1_BETHAK_WIDTH_INCHES,
+    tekoWidthInches,
+    bethakTotalInches,
+    tekoTotalInches,
+    bethakSqft,
+    tekoSqft,
+    bethakSheetsRaw,
+    tekoSheetsRaw,
+    handleCount: handles,
+    handleSheetsRaw,
+    rawTotalSheets,
+    totalSheets,
+  };
+}
+
+/**
+ * Calculates 15mm Stanzo (54" pano, 2-lane packing, +10" per teko piece)
+ * used only when tekoMode === 'lining12mm'.
+ */
+export function calculateStanzo(sections, options = {}) {
+  const active = options.tekoMode === 'lining12mm';
+  if (!active) {
+    return {
+      active: false,
+      allowance: STANZO_ALLOWANCE_INCHES,
+      pieces: [],
+      packed: packIntoTwoLanes([]),
+      meters: 0,
+    };
+  }
+
+  const loungerCornerLenInches = Math.max(
+    0,
+    num(
+      options.loungerCornerLenInches !== undefined &&
+        options.loungerCornerLenInches !== ''
+        ? options.loungerCornerLenInches
+        : DEFAULT_LOUNGER_CORNER_LEN_INCHES
+    )
+  );
+
+  const pieces = [];
+  (sections || []).forEach((sec, idx) => {
+    const label = sec.label || `સોફો ${idx + 1}`;
+    if (sec.type === 'l_corner') {
+      const mainFt = Math.max(0, num(sec.mainFt));
+      const cornerFt = Math.max(0, num(sec.cornerFt));
+      if (mainFt > 0) {
+        const baseIn = round2(mainFt * 12);
+        pieces.push({
+          id: `${sec.id}-sm`,
+          label: `${label} - મોટો ભાગ (${mainFt}')`,
+          baseInches: baseIn,
+          allowance: STANZO_ALLOWANCE_INCHES,
+          totalInches: round2(baseIn + STANZO_ALLOWANCE_INCHES),
+        });
+      }
+      if (cornerFt > 0) {
+        const cornerIn = round2(cornerFt * 12);
+        pieces.push({
+          id: `${sec.id}-sc`,
+          label: `${label} - ખૂણિયો (${cornerFt}')`,
+          baseInches: cornerIn,
+          allowance: STANZO_ALLOWANCE_INCHES,
+          totalInches: round2(cornerIn + STANZO_ALLOWANCE_INCHES),
+        });
+      }
+      return;
+    }
+
+    if (sec.type === 'lounger') {
+      const seatFt = Math.max(0, num(sec.seatFt));
+      if (seatFt > 0) {
+        const baseIn = Math.max(
+          0,
+          round2(seatFt * 12 - loungerCornerLenInches)
+        );
+        pieces.push({
+          id: `${sec.id}-sl`,
+          label: `${label} (ખૂણા વગર)`,
+          baseInches: baseIn,
+          allowance: STANZO_ALLOWANCE_INCHES,
+          totalInches: round2(baseIn + STANZO_ALLOWANCE_INCHES),
+        });
+      }
+      return;
+    }
+
+    const seatFt = Math.max(0, num(sec.seatFt));
+    if (seatFt > 0) {
+      const baseIn = round2(seatFt * 12);
+      pieces.push({
+        id: `${sec.id}-ss`,
+        label: `${label} (${seatFt}')`,
+        baseInches: baseIn,
+        allowance: STANZO_ALLOWANCE_INCHES,
+        totalInches: round2(baseIn + STANZO_ALLOWANCE_INCHES),
+      });
+    }
+  });
+
+  const packed = packIntoTwoLanes(pieces);
+  return {
+    active: true,
+    allowance: STANZO_ALLOWANCE_INCHES,
+    pieces,
+    packed,
+    meters: packed.meters,
+  };
+}
+
+/**
+ * Calculates Fevicol quantity in liters based on total sofa feet (1 liter per 5 feet step).
+ */
+export function calculateFevicol(totalSofaFeet) {
+  const totalFeet = Math.max(0, num(totalSofaFeet));
+  const liters =
+    totalFeet > 0 ? Math.ceil(totalFeet / FEVICOL_STEP_FEET - 1e-9) : 0;
+
+  return {
+    totalFeet,
+    stepFeet: FEVICOL_STEP_FEET,
+    liters,
+  };
+}
+
+/**
  * Main extensible material calculation entry point.
  */
 export function calculateAllMaterials(sections, handleCount, options = {}) {
   const kapad = calculateKapad(sections, handleCount, options);
   const coverKapad = calculateCoverKapad(sections, handleCount, options);
+  const foam4 = calculateFoam4Inch(sections, options);
+  const foam2 = calculateFoam2Inch(sections, options);
+  const foam1 = calculateFoam1Inch(sections, handleCount, options);
+  const stanzo = calculateStanzo(sections, options);
   const totalSofaFeet = calculateTotalSofaFeet(sections, handleCount);
+  const fevicol = calculateFevicol(totalSofaFeet);
 
   return {
     totalSofaFeet,
     kapad,
     coverKapad,
+    foam4,
+    foam2,
+    foam1,
+    stanzo,
+    fevicol,
   };
 }

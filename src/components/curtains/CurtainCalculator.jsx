@@ -26,6 +26,8 @@ import {
   PlusIcon,
   EditIcon,
   CartPlusIcon,
+  ArrowVerticalIcon,
+  ArrowHorizontalIcon,
 } from '../common/Icons';
 
 function buildInitialDynamicMap(initialQuote, settings) {
@@ -488,7 +490,12 @@ export default function CurtainCalculator({
             <div className="form-section-title">માપ અને પ્લીટિંગ ({roomName || 'બારી'})</div>
             <div className="form-row three compact-three" style={{ marginBottom: 0 }}>
               <div className="form-group">
-                <label>ઊંચાઈ - Height (ઇંચ)</label>
+                <label className="dim-label-arrow">
+                  <span className="dim-arrow-badge">
+                    <ArrowVerticalIcon size={13} />
+                  </span>
+                  <span>ઊંચાઈ (ઇંચ)</span>
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -501,7 +508,12 @@ export default function CurtainCalculator({
                 />
               </div>
               <div className="form-group">
-                <label>પહોળાઈ - Width (ઇંચ)</label>
+                <label className="dim-label-arrow">
+                  <span className="dim-arrow-badge">
+                    <ArrowHorizontalIcon size={13} />
+                  </span>
+                  <span>લંબાઈ / પહોળાઈ (ઇંચ)</span>
+                </label>
                 <input
                   type="number"
                   min="0"

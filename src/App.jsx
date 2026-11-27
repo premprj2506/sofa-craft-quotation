@@ -607,16 +607,35 @@ export default function App() {
   const handleTransferMaterialToQuote = (
     targetService,
     kapadMeters,
-    targetCoverType = 'simple'
+    targetCoverType = 'simple',
+    extraMaterial = 0
   ) => {
     setCartItems([]);
     setEditingQuoteId(null);
     setSelectedService(targetService);
+    const sponge4Sqft =
+      typeof extraMaterial === 'number'
+        ? extraMaterial
+        : extraMaterial?.sponge4Sqft || 0;
+    const sponge2Qty =
+      typeof extraMaterial === 'object' ? extraMaterial?.sponge2Qty || 0 : 0;
+    const sponge1Qty =
+      typeof extraMaterial === 'object' ? extraMaterial?.sponge1Qty || 0 : 0;
+    const stanzoMeters =
+      typeof extraMaterial === 'object' ? extraMaterial?.stanzoMeters || 0 : 0;
+    const fevicolQty =
+      typeof extraMaterial === 'object' ? extraMaterial?.fevicolQty || 0 : 0;
+
     if (targetService === 'reupholstery') {
       const defaults = getServiceDefaultsFromSettings('reupholstery', settings);
       setFormData({
         ...defaults,
         kapad_qty: kapadMeters,
+        sponge4_qty: sponge4Sqft > 0 ? sponge4Sqft : defaults.sponge4_qty,
+        sponge2_qty: sponge2Qty > 0 ? sponge2Qty : defaults.sponge2_qty,
+        sponge1_qty: sponge1Qty > 0 ? sponge1Qty : defaults.sponge1_qty,
+        stanzo_qty: stanzoMeters > 0 ? stanzoMeters : defaults.stanzo_qty,
+        fevicol_qty: fevicolQty > 0 ? fevicolQty : defaults.fevicol_qty,
       });
     } else if (targetService === 'cover') {
       setCoverType(targetCoverType);
@@ -630,7 +649,17 @@ export default function App() {
         kapad_meter: kapadMeters,
       });
     }
-    showToast(`કાપડ (${kapadMeters.toFixed(2)} મીટર) કોટેશનમાં ઉમેરાયું!`);
+    const extraParts = [];
+    if (sponge4Sqft > 0) extraParts.push(`4" (${sponge4Sqft} ft)`);
+    if (sponge2Qty > 0) extraParts.push(`2" (${sponge2Qty} નંગ)`);
+    if (sponge1Qty > 0) extraParts.push(`1" (${sponge1Qty} સીટ)`);
+    if (stanzoMeters > 0) extraParts.push(`સ્ટેન્ઝો (${stanzoMeters.toFixed(2)} m)`);
+    if (fevicolQty > 0) extraParts.push(`ફેવિકોલ (${fevicolQty} લિ.)`);
+    const toastExtra =
+      targetService === 'reupholstery' && extraParts.length > 0
+        ? ` + ${extraParts.join(' + ')}`
+        : '';
+    showToast(`કાપડ (${kapadMeters.toFixed(2)} મીટર)${toastExtra} કોટેશનમાં ઉમેરાયું!`);
     setPage('form');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

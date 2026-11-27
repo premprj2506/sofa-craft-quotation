@@ -160,6 +160,22 @@ export function buildKarigarWhatsAppMessage(params) {
     });
   });
 
+  if (sheet.foamSummary) {
+    lines.push(`▸ *ઘ) 4" સ્પંચ શીટ* — *${sheet.foamSummary}*`);
+  }
+  if (sheet.foam2Summary) {
+    lines.push(`▸ *ચ) 2" ટેકો સીટ* — *${sheet.foam2Summary}*`);
+  }
+  if (sheet.foam1Summary) {
+    lines.push(`▸ *છ) 1" ની સીટ (3×6)* — *${sheet.foam1Summary}*`);
+  }
+  if (sheet.stanzoSummary) {
+    lines.push(`▸ *જ) 15mm સ્ટેન્ઝો* — *${sheet.stanzoSummary}*`);
+  }
+  if (sheet.fevicolSummary) {
+    lines.push(`▸ *ઝ) ફેવિકોલ* — *${sheet.fevicolSummary}*`);
+  }
+
   lines.push('', `✅ *${sheet.totalMetersLabel}: ${sheet.totalMetersText}*`);
   return lines.join('\n');
 }
